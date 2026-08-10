@@ -712,63 +712,82 @@ function Profile({
   isAuthBusy: boolean;
   signOut: () => void;
 }) {
+  const isCreateMode = authMode === "create";
+
   return (
     <section className="profile-stack">
-      <div className="profile-card">
-        <Avatar value={profile.avatar} fallback={initials(profile.displayName || profile.handle)} size="big" />
-        <h2>{profile.handle}</h2>
-        <p>{user ? "Signed in to Bantrboks" : "Join the Boks vs ABs room"}</p>
-        <div className="profile-stats">
-          <span>{postCount}<small>bantrs</small></span>
-          <span>{room.left}<small>side</small></span>
-          <span>{room.right}<small>rival</small></span>
-        </div>
+      <div className="auth-hero">
+        <div className="auth-icon">B</div>
+        <h2>BANTRBOKS</h2>
+        <span />
+        <strong>Drop takes. Win likes. Climb the board.</strong>
+        <p>Bantrboks is a division of Bantrbox.com.</p>
       </div>
 
+      <p className="auth-legal">
+        By tapping "Create Account" or "Sign In", you agree to our Terms. Learn how we process your data in our
+        Privacy Policy.
+      </p>
+
       <div className="auth-tabs">
-        <button className={authMode === "create" ? "active" : ""} onClick={() => setAuthMode("create")}>
+        <button className={isCreateMode ? "active" : ""} onClick={() => setAuthMode("create")}>
           Create
         </button>
-        <button className={authMode === "sign-in" ? "active" : ""} onClick={() => setAuthMode("sign-in")}>
+        <button className={!isCreateMode ? "active" : ""} onClick={() => setAuthMode("sign-in")}>
           Sign in
         </button>
       </div>
 
-      <label>
-        Display name
-        <input
-          value={profile.displayName}
-          onChange={(event) => setProfile((current) => ({ ...current, displayName: event.target.value }))}
-        />
-      </label>
-      <label>
-        Handle
-        <input
-          value={profile.handle}
-          onChange={(event) => setProfile((current) => ({ ...current, handle: normalizeHandle(event.target.value) }))}
-        />
-      </label>
-      <label>
-        Email
-        <input
-          value={profile.email}
-          onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))}
-          placeholder="you@example.com"
-          type="email"
-        />
-      </label>
-      <label>
-        Password
-        <input
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="Password"
-          type="password"
-        />
-      </label>
+      {isCreateMode && (
+        <>
+          <input
+            value={profile.displayName}
+            onChange={(event) => setProfile((current) => ({ ...current, displayName: event.target.value }))}
+            placeholder="Display name"
+          />
+          <input
+            value={profile.handle}
+            onChange={(event) => setProfile((current) => ({ ...current, handle: normalizeHandle(event.target.value) }))}
+            placeholder="Handle"
+          />
+        </>
+      )}
+      <input
+        value={profile.email}
+        onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))}
+        placeholder="Email"
+        type="email"
+      />
+      <input
+        value={password}
+        onChange={(event) => setPassword(event.target.value)}
+        placeholder="Password"
+        type="password"
+      />
       <button className="primary-action" onClick={authenticate} disabled={isAuthBusy}>
-        {isAuthBusy ? "Working..." : authMode === "create" ? "Join Bantrboks" : "Sign in"}
+        {isAuthBusy ? "Working..." : isCreateMode ? "Create Account" : "Sign in"}
       </button>
+      {!user && (
+        <button
+          className="secondary-action"
+          onClick={() => setAuthMode(isCreateMode ? "sign-in" : "create")}
+          disabled={isAuthBusy}
+        >
+          {isCreateMode ? "I already have an account" : "Create a new account"}
+        </button>
+      )}
+      {user && (
+        <div className="profile-card">
+          <Avatar value={profile.avatar} fallback={initials(profile.displayName || profile.handle)} size="big" />
+          <h2>{profile.handle}</h2>
+          <p>Signed in to Bantrboks</p>
+          <div className="profile-stats">
+            <span>{postCount}<small>bantrs</small></span>
+            <span>{room.left}<small>side</small></span>
+            <span>{room.right}<small>rival</small></span>
+          </div>
+        </div>
+      )}
       {user && (
         <button className="danger-action" onClick={signOut}>
           Sign out
