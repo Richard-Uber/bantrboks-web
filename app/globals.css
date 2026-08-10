@@ -214,58 +214,20 @@ a {
   .mobile-room-entry {
     display: grid;
     justify-items: center;
-    gap: 10px;
     margin: 22px 0 18px;
   }
 
-  .mobile-room-entry p {
-    margin: 0;
-    color: #f8f6ec;
-    font-size: 18px;
-    font-weight: 950;
-    text-align: center;
-  }
-
-  .mobile-room-pill {
-    width: min(280px, 78vw);
-    height: 76px;
-    display: grid;
-    grid-template-columns: 1fr 58px 1fr;
-    align-items: center;
-    overflow: hidden;
-    border: 3px solid #ffd600;
-    border-radius: 24px;
+  .mobile-room-poster {
+    display: block;
+    width: min(100%, 440px);
+    height: auto;
+    border: 2px solid rgba(255, 214, 0, 0.86);
+    border-radius: 20px;
+    box-shadow:
+      0 0 0 1px rgba(53, 213, 213, 0.32),
+      0 18px 44px rgba(0, 0, 0, 0.42),
+      0 0 26px rgba(53, 213, 213, 0.16);
     background: #050505;
-    box-shadow: 0 0 22px rgba(255, 214, 0, 0.16);
-  }
-
-  .mobile-room-pill span {
-    height: 100%;
-    display: grid;
-    place-items: center;
-    color: #f8f6ec;
-    font-size: 20px;
-    font-weight: 950;
-  }
-
-  .mobile-room-pill span:first-child {
-    background: #067334;
-  }
-
-  .mobile-room-pill span:last-child {
-    background: #050505;
-  }
-
-  .mobile-room-pill strong {
-    height: 100%;
-    display: grid;
-    place-items: center;
-    color: #ffd600;
-    font-size: 18px;
-    font-weight: 950;
-    background:
-      linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)),
-      #111;
   }
 
   .mobile-login {
@@ -278,6 +240,29 @@ a {
     background:
       linear-gradient(135deg, rgba(255, 214, 0, 0.1), rgba(53, 213, 213, 0.08)),
       rgba(8, 8, 8, 0.92);
+  }
+
+  .mobile-auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 5px;
+    border-radius: 999px;
+    background: #000;
+  }
+
+  .mobile-auth-tabs button {
+    height: 48px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #f8f6ec;
+    font-size: 18px;
+    font-weight: 950;
+  }
+
+  .mobile-auth-tabs .is-active {
+    background: #ffd600;
+    color: #000;
   }
 
   .mobile-login input {
@@ -296,14 +281,24 @@ a {
     color: rgba(248, 246, 236, 0.45);
   }
 
-  .mobile-login button {
+  .mobile-auth-primary,
+  .mobile-auth-secondary {
     height: 58px;
-    border: 0;
     border-radius: 999px;
-    background: #ffd600;
-    color: #000;
     font-size: 22px;
     font-weight: 950;
+  }
+
+  .mobile-auth-primary {
+    border: 0;
+    background: #ffd600;
+    color: #000;
+  }
+
+  .mobile-auth-secondary {
+    border: 1.5px solid #ffd600;
+    background: #000;
+    color: #f8f6ec;
   }
 
   .mobile-login a {
@@ -321,8 +316,8 @@ a {
   .mobile-hero h1 {
     margin: 0;
     color: #f8f6ec;
-    font-size: clamp(48px, 14vw, 68px);
-    line-height: 0.95;
+    font-size: clamp(38px, 10.8vw, 58px);
+    line-height: 1;
     font-weight: 950;
   }
 

@@ -75,18 +75,31 @@ export default function Home() {
         </header>
 
         <section className="mobile-room-entry" aria-label="Bantrboks room">
-          <div className="mobile-room-pill">
-            <span>BOKS</span>
-            <strong>VS</strong>
-            <span>ABS</span>
-          </div>
-          <p>Springboks vs All Blacks</p>
+          <img
+            className="mobile-room-poster"
+            src="/brand/bantrboks-room-boks-abs.png"
+            alt="BOKS vs ABS Bantrboks room"
+            draggable={false}
+          />
         </section>
 
-        <form className="mobile-login" aria-label="Bantrboks sign in">
+        <form className="mobile-login" aria-label="Bantrboks account access">
+          <div className="mobile-auth-tabs" aria-label="Account mode">
+            <button className="is-active" type="button">
+              Create
+            </button>
+            <button type="button">Sign in</button>
+          </div>
+          <input type="text" placeholder="Display name" aria-label="Display name" />
+          <input type="text" placeholder="Handle" aria-label="Handle" />
           <input type="email" placeholder="Email" aria-label="Email" />
           <input type="password" placeholder="Password" aria-label="Password" />
-          <button type="button">Sign in</button>
+          <button className="mobile-auth-primary" type="button">
+            Create Account
+          </button>
+          <button className="mobile-auth-secondary" type="button">
+            I already have an account
+          </button>
           <a href="https://bantrbox.com/support" target="_blank" rel="noreferrer">
             Trouble signing in?
           </a>
@@ -94,9 +107,9 @@ export default function Home() {
 
         <section className="mobile-hero">
           <h1>
-            Drop takes.
-            <span>Win likes.</span>
-            <strong>Climb the board.</strong>
+            Drop your hottest Boks/AB takes.
+            <span>Win likes • Support your team</span>
+            <strong>Climb the board</strong>
           </h1>
           <div className="mobile-rule" />
           <p className="mobile-copy">
