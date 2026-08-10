@@ -64,6 +64,81 @@ export default function Home() {
           />
         ))}
       </section>
+      <section className="mobile-landing" aria-label="Bantrboks mobile landing page">
+        <header className="mobile-header">
+          <img
+            className="mobile-logo"
+            src="/bantrboks-logo.png"
+            alt="Bantrboks"
+            draggable={false}
+          />
+          <nav className="mobile-nav" aria-label="Legal and support links">
+            <a href="https://bantrbox.com/privacy" target="_blank" rel="noreferrer">
+              Privacy
+            </a>
+            <a href="https://bantrbox.com/terms" target="_blank" rel="noreferrer">
+              Terms
+            </a>
+            <a href="https://bantrbox.com/support" target="_blank" rel="noreferrer">
+              Support
+            </a>
+          </nav>
+        </header>
+
+        <section className="mobile-hero">
+          <p className="mobile-kicker">Springboks vs All Blacks bantr room</p>
+          <h1>
+            Drop takes.
+            <span>Win likes.</span>
+            <strong>Climb the board.</strong>
+          </h1>
+          <div className="mobile-rule" />
+          <p className="mobile-copy">
+            Public bantr drops, rankings, live chat and reaction-led feeds built
+            for fast-moving debate.
+          </p>
+          <div className="mobile-actions">
+            <a href={appStoreUrl} target="_blank" rel="noreferrer" className="store-button">
+              <span>Download on the</span>
+              App Store
+            </a>
+            <a href={playStoreUrl} target="_blank" rel="noreferrer" className="store-button play">
+              <span>Get it on</span>
+              Google Play
+            </a>
+          </div>
+        </section>
+
+        <img
+          className="mobile-phone-preview"
+          src="/brand/bantrboks-phone-preview.png"
+          alt="Bantrboks app preview"
+          draggable={false}
+        />
+
+        <section className="mobile-cards" aria-label="Bantrboks policies">
+          <a href="https://bantrbox.com/privacy" target="_blank" rel="noreferrer">
+            <span>Privacy Policy</span>
+            <small>Learn how we protect your data.</small>
+          </a>
+          <a href="https://bantrbox.com/terms" target="_blank" rel="noreferrer">
+            <span>Terms & Conditions</span>
+            <small>Read the rules that govern Bantrboks.</small>
+          </a>
+          <a href="https://bantrbox.com/community-guidelines" target="_blank" rel="noreferrer">
+            <span>Community Guidelines</span>
+            <small>Build a better community together.</small>
+          </a>
+          <a href="https://bantrbox.com/safety-standards" target="_blank" rel="noreferrer">
+            <span>Safety Standards</span>
+            <small>Our commitment to a safer experience.</small>
+          </a>
+        </section>
+
+        <a className="mobile-email" href="mailto:support@ubermobi.com">
+          support@ubermobi.com
+        </a>
+      </section>
     </main>
   );
 }
