@@ -5,6 +5,621 @@
   --foreground: #f8f6ec;
 }
 
+.bb-loading,
+.bb-app {
+  min-height: 100vh;
+  background: #141414;
+  color: #f8f6ec;
+  font-family: var(--font-inter), Arial, sans-serif;
+}
+
+.bb-loading {
+  display: grid;
+  place-items: center;
+}
+
+.bb-loading img {
+  width: min(320px, 72vw);
+}
+
+.bb-app {
+  --bb-yellow: #ffd600;
+  --bb-cyan: #35d5d5;
+  --bb-green: #31d66b;
+  --bb-purple: #b45cff;
+  --bb-card: #202207;
+  --bb-soft: rgba(248, 246, 236, 0.68);
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 28px 128px;
+}
+
+.bb-app button,
+.bb-app input,
+.bb-app textarea {
+  font: inherit;
+}
+
+.bb-app-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.bb-app-logo {
+  width: clamp(210px, 36vw, 330px);
+  height: auto;
+  object-fit: contain;
+}
+
+.bb-profile-dot,
+.bb-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 3px solid var(--bb-yellow);
+  border-radius: 50%;
+  color: var(--bb-yellow);
+  background: #050505;
+  font-weight: 950;
+}
+
+.bb-profile-dot {
+  cursor: pointer;
+}
+
+.bb-avatar.large {
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 12px;
+  font-size: 28px;
+}
+
+.bb-room-hero {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  margin: 0 auto 26px;
+  text-align: center;
+}
+
+.bb-room-hero p {
+  margin: 0;
+  color: var(--bb-cyan);
+  font-weight: 950;
+}
+
+.bb-room-icon {
+  display: grid;
+  grid-template-columns: 1fr 56px 1fr;
+  align-items: center;
+  width: min(410px, 92vw);
+  min-height: 94px;
+  overflow: hidden;
+  border: 4px solid var(--bb-yellow);
+  border-radius: 24px;
+  box-shadow: 0 0 30px rgba(53, 213, 213, 0.2);
+  background: #020202;
+}
+
+.bb-room-icon span,
+.bb-room-icon strong {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: clamp(18px, 4vw, 28px);
+  font-weight: 950;
+}
+
+.bb-room-icon span:first-child {
+  background: #067a3a;
+}
+
+.bb-room-icon span:last-child {
+  background: #050505;
+}
+
+.bb-room-icon strong {
+  color: var(--bb-yellow);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.76), #151515 50%, rgba(0, 0, 0, 0.76));
+}
+
+.bb-viewbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.bb-viewbar h1 {
+  margin: 0;
+  color: var(--bb-yellow);
+  font-size: clamp(42px, 7vw, 74px);
+  line-height: 0.92;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.bb-viewbar span {
+  max-width: 48%;
+  padding: 12px 18px;
+  border: 3px solid var(--bb-cyan);
+  border-radius: 999px;
+  color: var(--bb-cyan);
+  background: rgba(0, 0, 0, 0.55);
+  font-size: clamp(14px, 2vw, 18px);
+  font-weight: 950;
+  text-align: center;
+}
+
+.bb-status {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: #050505;
+  background: var(--bb-yellow);
+  font-weight: 950;
+}
+
+.bb-content {
+  display: grid;
+  gap: 20px;
+}
+
+.bb-card,
+.bb-post,
+.bb-create {
+  border: 4px solid var(--bb-yellow);
+  border-radius: 26px;
+  background:
+    linear-gradient(135deg, rgba(255, 214, 0, 0.08), rgba(53, 213, 213, 0.05)),
+    var(--bb-card);
+  padding: 28px;
+}
+
+.bb-card h2,
+.bb-create label {
+  display: block;
+  margin: 0 0 18px;
+  color: #f8f6ec;
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1;
+  font-weight: 950;
+}
+
+.bb-muted {
+  color: var(--bb-soft);
+  font-weight: 800;
+}
+
+.bb-feed {
+  display: grid;
+  gap: 20px;
+}
+
+.bb-post {
+  border-color: var(--bb-green);
+}
+
+.bb-post:nth-child(3n + 1) {
+  border-color: var(--bb-yellow);
+}
+
+.bb-post:nth-child(3n + 2) {
+  border-color: var(--bb-cyan);
+}
+
+.bb-post header,
+.bb-ladder-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bb-post header {
+  margin-bottom: 18px;
+}
+
+.bb-post header strong,
+.bb-ladder-row b {
+  display: block;
+  color: #f8f6ec;
+  font-size: 28px;
+  font-weight: 950;
+}
+
+.bb-post header small,
+.bb-ladder-row small {
+  display: block;
+  color: var(--bb-soft);
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.bb-tag {
+  display: inline-flex;
+  max-width: 100%;
+  margin-bottom: 18px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  color: #050505;
+  background: var(--bb-yellow);
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.bb-post-body {
+  margin: 0 0 18px;
+  color: #f8f6ec;
+  font-size: 26px;
+  line-height: 1.18;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.bb-post-media {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+  border: 2px solid rgba(248, 246, 236, 0.2);
+  border-radius: 14px;
+  background: #050505;
+}
+
+.bb-post-audio {
+  width: 100%;
+}
+
+.bb-actions,
+.bb-comment-form,
+.bb-chat-form,
+.bb-create-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bb-actions {
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+
+.bb-actions button,
+.bb-comment-form button,
+.bb-chat-form button,
+.bb-primary,
+.bb-secondary {
+  min-height: 52px;
+  border: 3px solid var(--bb-cyan);
+  border-radius: 999px;
+  padding: 0 20px;
+  color: var(--bb-cyan);
+  background: rgba(0, 0, 0, 0.62);
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.bb-actions button:first-child,
+.bb-primary {
+  border-color: var(--bb-yellow);
+  color: #050505;
+  background: var(--bb-yellow);
+}
+
+.bb-actions button:nth-child(3) {
+  border-color: var(--bb-purple);
+  color: var(--bb-purple);
+}
+
+.bb-actions button:disabled,
+.bb-primary:disabled {
+  opacity: 0.58;
+  cursor: wait;
+}
+
+.bb-comments {
+  display: grid;
+  gap: 10px;
+}
+
+.bb-comments p {
+  margin: 0;
+  padding: 12px 14px;
+  border: 2px solid rgba(180, 92, 255, 0.55);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.34);
+  overflow-wrap: anywhere;
+}
+
+.bb-comments strong {
+  color: var(--bb-yellow);
+}
+
+.bb-comment-form {
+  margin-top: 14px;
+}
+
+.bb-comment-form input,
+.bb-chat-form input,
+.bb-create textarea {
+  width: 100%;
+  border: 2px solid rgba(248, 246, 236, 0.2);
+  border-radius: 14px;
+  color: #f8f6ec;
+  background: #101010;
+  font-weight: 900;
+  outline: none;
+}
+
+.bb-comment-form input,
+.bb-chat-form input {
+  min-height: 58px;
+  padding: 0 18px;
+}
+
+.bb-create textarea {
+  min-height: 140px;
+  resize: vertical;
+  padding: 18px;
+  font-size: 24px;
+}
+
+.bb-create-meta {
+  justify-content: space-between;
+  margin: 12px 0 20px;
+  color: var(--bb-yellow);
+  font-weight: 950;
+}
+
+.bb-create {
+  display: grid;
+  gap: 14px;
+  border-color: var(--bb-cyan);
+}
+
+.bb-secondary.danger {
+  border-color: #ff6161;
+  color: #ff9b9b;
+}
+
+.bb-ladder-list {
+  display: grid;
+  gap: 14px;
+}
+
+.bb-ladder-row {
+  width: 100%;
+  min-height: 92px;
+  border: 4px solid var(--bb-yellow);
+  border-radius: 18px;
+  padding: 12px 18px;
+  color: #f8f6ec;
+  background: rgba(0, 0, 0, 0.34);
+  text-align: left;
+  cursor: pointer;
+}
+
+.bb-ladder-row:nth-child(2) {
+  border-color: var(--bb-green);
+}
+
+.bb-ladder-row:nth-child(3) {
+  border-color: var(--bb-purple);
+}
+
+.bb-ladder-row:nth-child(4) {
+  border-color: var(--bb-cyan);
+}
+
+.bb-ladder-row > strong {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: #050505;
+  background: var(--bb-yellow);
+  font-size: 24px;
+}
+
+.bb-ladder-row > span:nth-child(3) {
+  flex: 1;
+}
+
+.bb-ladder-row em {
+  color: var(--bb-yellow);
+  font-size: 28px;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.bb-notification {
+  padding: 16px;
+  border: 2px solid var(--bb-cyan);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.34);
+}
+
+.bb-notification + .bb-notification {
+  margin-top: 12px;
+}
+
+.bb-notification strong {
+  color: var(--bb-yellow);
+}
+
+.bb-chat {
+  border-color: var(--bb-cyan);
+}
+
+.bb-chat-window {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: min(48vh, 430px);
+  overflow: auto;
+  margin: 18px 0;
+  padding: 16px;
+  border: 2px solid rgba(248, 246, 236, 0.16);
+  border-radius: 18px;
+  background: #050505;
+}
+
+.bb-chat-window > div:not(:last-child) {
+  max-width: 78%;
+  padding: 12px 14px;
+  border: 2px solid var(--bb-cyan);
+  border-radius: 16px;
+  background: rgba(53, 213, 213, 0.08);
+}
+
+.bb-chat-window .is-mine {
+  align-self: flex-end;
+  border-color: var(--bb-yellow);
+  background: rgba(255, 214, 0, 0.1);
+}
+
+.bb-chat-window strong {
+  color: var(--bb-yellow);
+}
+
+.bb-chat-window p {
+  margin: 4px 0 0;
+}
+
+.bb-profile {
+  text-align: center;
+}
+
+.bb-bio {
+  max-width: 620px;
+  margin: 12px auto 22px;
+  color: #f8f6ec;
+  font-weight: 850;
+}
+
+.bb-bottom-nav {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  width: min(1120px, 100%);
+  transform: translateX(-50%);
+  border-top: 2px solid rgba(248, 246, 236, 0.15);
+  background: #202020;
+}
+
+.bb-bottom-nav button {
+  display: grid;
+  place-items: center;
+  min-height: 88px;
+  border: 0;
+  color: #f8f6ec;
+  background: transparent;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.bb-bottom-nav span {
+  display: block;
+  color: inherit;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.bb-bottom-nav .is-active {
+  color: var(--bb-yellow);
+}
+
+@media (max-width: 720px) {
+  .bb-app {
+    padding: 42px 16px 116px;
+  }
+
+  .bb-app-logo {
+    width: 235px;
+  }
+
+  .bb-profile-dot {
+    width: 52px;
+    height: 52px;
+  }
+
+  .bb-viewbar {
+    align-items: flex-start;
+  }
+
+  .bb-viewbar h1 {
+    font-size: 44px;
+  }
+
+  .bb-viewbar span {
+    max-width: 52%;
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+
+  .bb-room-icon {
+    grid-template-columns: 1fr 44px 1fr;
+    min-height: 72px;
+    border-radius: 18px;
+  }
+
+  .bb-card,
+  .bb-post,
+  .bb-create {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .bb-post header strong,
+  .bb-ladder-row b {
+    font-size: 24px;
+  }
+
+  .bb-post-body {
+    font-size: 23px;
+  }
+
+  .bb-post-media {
+    max-height: 410px;
+  }
+
+  .bb-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bb-actions button,
+  .bb-comment-form button,
+  .bb-chat-form button {
+    min-height: 50px;
+    padding: 0 12px;
+  }
+
+  .bb-comment-form,
+  .bb-chat-form {
+    align-items: stretch;
+  }
+
+  .bb-comment-form input,
+  .bb-chat-form input {
+    min-width: 0;
+  }
+
+  .bb-bottom-nav button {
+    min-height: 82px;
+    font-size: 13px;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
