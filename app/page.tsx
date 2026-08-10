@@ -1,20 +1,41 @@
 "use client";
 
-import { ChangeEvent, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, Dispatch, RefObject, SetStateAction } from "react";
+import type { User } from "@supabase/supabase-js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "./supabase";
 
 type View = "feed" | "create" | "ladder" | "profile";
+type ReactionType = "slap" | "mic";
+
+type ProfileData = {
+  id: string;
+  handle: string;
+  displayName: string;
+  email: string;
+  avatar?: string;
+};
+
+type BantrReply = {
+  id: string;
+  body: string;
+  handle: string;
+  createdAt: string;
+};
 
 type BantrPost = {
-  id: number;
+  id: string;
+  authorId: string;
   handle: string;
   displayName: string;
   avatar: string;
   body: string;
+  tags: string[];
   mediaUrl?: string;
-  mediaName?: string;
+  audioUrl?: string;
   slaps: number;
   fdrops: number;
-  replies: string[];
+  replies: BantrReply[];
   createdAt: string;
 };
 
@@ -25,56 +46,103 @@ const room = {
   right: "ABS",
 };
 
-const seedPosts: BantrPost[] = [
-  {
-    id: 1,
-    handle: "@bokrage",
-    displayName: "Bok Rage",
-    avatar: "BR",
-    body: "Green and gold pressure is different. ABs fans can keep the history books, this one is about Saturday.",
-    slaps: 24,
-    fdrops: 12,
-    replies: ["ABs by 8, relax.", "You said this last time too."],
-    createdAt: "12M",
-  },
-  {
-    id: 2,
-    handle: "@hakaheat",
-    displayName: "Haka Heat",
-    avatar: "HH",
-    body: "Boks talking like the breakdown belongs to them. See you after the first turnover.",
-    slaps: 18,
-    fdrops: 16,
-    replies: ["Receipts saved.", "That first scrum will decide it."],
-    createdAt: "27M",
-  },
-  {
-    id: 3,
-    handle: "@scrumcourt",
-    displayName: "Scrum Court",
-    avatar: "SC",
-    body: "The room is simple: pick your side, drop your best bantr, climb the Boks vs ABs ladder.",
-    slaps: 41,
-    fdrops: 21,
-    replies: ["This is going to be chaos."],
-    createdAt: "1H",
-  },
-];
+const mediaBucket = "bantrbox-media";
 
 export default function Home() {
   const [view, setView] = useState<View>("feed");
-  const [posts, setPosts] = useState(seedPosts);
+  const [posts, setPosts] = useState<BantrPost[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [draft, setDraft] = useState("");
-  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [mediaPreview, setMediaPreview] = useState<string | undefined>();
+  const [mediaFile, setMediaFile] = useState<File | undefined>();
   const [mediaName, setMediaName] = useState<string | undefined>();
-  const [profile, setProfile] = useState({
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<ProfileData>({
+    id: "",
     handle: "@bantrbok",
     displayName: "Bantrbok",
     email: "",
   });
+  const [authMode, setAuthMode] = useState<"sign-in" | "create">("create");
+  const [password, setPassword] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
+  const [isAuthBusy, setIsAuthBusy] = useState(false);
   const [toast, setToast] = useState("Bantrboks room live");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadPosts = useCallback(async () => {
+    setIsLoadingPosts(true);
+
+    const { data, error } = await supabase
+      .from("posts")
+      .select(
+        `
+        id,
+        author_id,
+        body,
+        visibility,
+        tags,
+        media_url,
+        audio_url,
+        created_at,
+        profiles (
+          handle,
+          display_name,
+          avatar
+        ),
+        post_reactions (
+          reaction
+        ),
+        comments (
+          id,
+          body,
+          created_at,
+          deleted_at,
+          profiles (
+            handle
+          )
+        )
+      `,
+      )
+      .contains("tags", [room.name])
+      .is("deleted_at", null)
+      .or("moderation_status.is.null,moderation_status.eq.visible")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error || !data) {
+      setToast(error?.message ? `Feed could not load: ${error.message}` : "Feed could not load");
+      setPosts([]);
+      setIsLoadingPosts(false);
+      return;
+    }
+
+    setPosts(data.map(postFromRow));
+    setIsLoadingPosts(false);
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUser(data.user ?? null);
+      if (data.user) {
+        await loadProfile(data.user);
+      }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await loadProfile(session.user);
+      }
+    });
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    void loadPosts();
+  }, [loadPosts]);
 
   const ladder = useMemo(() => {
     const scores = new Map<string, { handle: string; displayName: string; score: number; avatar: string }>();
@@ -91,68 +159,221 @@ export default function Home() {
     return Array.from(scores.values()).sort((a, b) => b.score - a.score);
   }, [posts]);
 
+  async function loadProfile(nextUser: User) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, email, handle, display_name, avatar")
+      .eq("id", nextUser.id)
+      .maybeSingle();
+
+    const fallback = {
+      id: nextUser.id,
+      email: nextUser.email ?? "",
+      handle: normalizeHandle(String(nextUser.user_metadata?.handle ?? nextUser.email?.split("@")[0] ?? "bantrbok")),
+      display_name: String(nextUser.user_metadata?.display_name ?? "Bantrbok"),
+      avatar: undefined,
+    };
+
+    const nextProfile = data ?? fallback;
+    setProfile({
+      id: nextProfile.id,
+      email: nextProfile.email,
+      handle: normalizeHandle(nextProfile.handle),
+      displayName: nextProfile.display_name,
+      avatar: nextProfile.avatar ?? undefined,
+    });
+  }
+
+  async function ensureProfile(activeUser: User) {
+    const cleanHandle = normalizeHandle(profile.handle);
+    const cleanDisplayName = profile.displayName.trim() || cleanHandle.replace("@", "") || "Bantrbok";
+
+    const { error } = await supabase.from("profiles").upsert({
+      id: activeUser.id,
+      email: activeUser.email ?? profile.email,
+      handle: cleanHandle,
+      display_name: cleanDisplayName,
+      avatar: profile.avatar ?? null,
+      bantr_feed: [room.name],
+    });
+
+    if (error) throw new Error(error.message);
+
+    setProfile((current) => ({
+      ...current,
+      id: activeUser.id,
+      email: activeUser.email ?? current.email,
+      handle: cleanHandle,
+      displayName: cleanDisplayName,
+    }));
+  }
+
+  async function authenticate() {
+    const email = profile.email.trim();
+    const cleanPassword = password.trim();
+    if (!email || !cleanPassword) {
+      setToast("Add email and password first");
+      return;
+    }
+
+    setIsAuthBusy(true);
+    try {
+      if (authMode === "create") {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password: cleanPassword,
+          options: {
+            data: {
+              handle: normalizeHandle(profile.handle),
+              display_name: profile.displayName.trim() || "Bantrbok",
+            },
+          },
+        });
+        if (error) throw new Error(error.message);
+        if (data.user && data.session) {
+          await ensureProfile(data.user);
+          setToast("Welcome to Bantrboks");
+        } else {
+          setToast("Check your email to verify, then sign in");
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: cleanPassword });
+        if (error) throw new Error(error.message);
+        if (data.user) await ensureProfile(data.user);
+        setToast("Signed in");
+      }
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Auth failed");
+    } finally {
+      setIsAuthBusy(false);
+    }
+  }
+
   function handleMedia(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (mediaPreview) URL.revokeObjectURL(mediaPreview);
+    setMediaFile(file);
     setMediaPreview(URL.createObjectURL(file));
     setMediaName(file.name);
     setToast("Media ready for the bantr");
   }
 
-  function createPost() {
+  async function uploadMedia(activeUser: User) {
+    if (!mediaFile) return undefined;
+
+    const safeName = mediaFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+    const filePath = `posts/${activeUser.id}/${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage.from(mediaBucket).upload(filePath, mediaFile, {
+      cacheControl: "3600",
+      contentType: mediaFile.type || "application/octet-stream",
+      upsert: false,
+    });
+
+    if (error) throw new Error(error.message);
+
+    const { data } = supabase.storage.from(mediaBucket).getPublicUrl(filePath);
+    return data.publicUrl;
+  }
+
+  async function createPost() {
+    if (isPosting) return;
+
     const clean = draft.trim();
-    if (!clean && !mediaPreview) {
+    if (!clean && !mediaFile) {
       setToast("Add text or media first");
       return;
     }
 
-    setPosts((current) => [
-      {
-        id: Date.now(),
-        handle: profile.handle || "@bantrbok",
-        displayName: profile.displayName || "Bantrbok",
-        avatar: initials(profile.displayName || profile.handle),
+    if (!user) {
+      setToast("Create an account or sign in to post");
+      setView("profile");
+      return;
+    }
+
+    setIsPosting(true);
+    setToast(mediaFile ? "Uploading media..." : "Posting bantr...");
+
+    try {
+      await ensureProfile(user);
+      const mediaUrl = await uploadMedia(user);
+      const postId = String(Date.now());
+      const { error } = await supabase.from("posts").insert({
+        id: postId,
+        author_id: user.id,
         body: clean,
-        mediaUrl: mediaPreview,
-        mediaName,
-        slaps: 0,
-        fdrops: 0,
-        replies: [],
-        createdAt: "Now",
-      },
-      ...current,
-    ]);
-    setDraft("");
-    setMediaPreview(undefined);
-    setMediaName(undefined);
-    setToast("Bantr posted to Boks vs ABs");
-    setView("feed");
+        visibility: "Everyone",
+        tags: [room.name, "bantrbox", "bantrboks"],
+        media_url: mediaUrl ?? null,
+      });
+
+      if (error) throw new Error(error.message);
+
+      setDraft("");
+      setMediaFile(undefined);
+      setMediaPreview(undefined);
+      setMediaName(undefined);
+      await loadPosts();
+      setToast("Bantr posted to Boks vs ABs");
+      setView("feed");
+    } catch (error) {
+      setToast(error instanceof Error ? `Bantr did not post: ${error.message}` : "Bantr did not post");
+    } finally {
+      setIsPosting(false);
+    }
   }
 
-  function react(postId: number, type: "slap" | "fdrop") {
-    setPosts((current) =>
-      current.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              slaps: type === "slap" ? post.slaps + 1 : post.slaps,
-              fdrops: type === "fdrop" ? post.fdrops + 1 : post.fdrops,
-            }
-          : post,
-      ),
-    );
+  async function react(postId: string, type: ReactionType) {
+    if (!user) {
+      setToast("Sign in to react");
+      setView("profile");
+      return;
+    }
+
+    try {
+      await ensureProfile(user);
+      const { error } = await supabase.from("post_reactions").upsert(
+        {
+          id: `${user.id}-${postId}-${type}`,
+          user_id: user.id,
+          post_id: postId,
+          reaction: type,
+        },
+        { onConflict: "user_id,post_id,reaction" },
+      );
+      if (error) throw new Error(error.message);
+      await loadPosts();
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Reaction failed");
+    }
   }
 
-  function reply(postId: number) {
+  async function reply(postId: string) {
     const clean = replyDrafts[postId]?.trim();
     if (!clean) return;
-    setPosts((current) =>
-      current.map((post) =>
-        post.id === postId ? { ...post, replies: [...post.replies, clean] } : post,
-      ),
-    );
-    setReplyDrafts((current) => ({ ...current, [postId]: "" }));
-    setToast("Reply added");
+
+    if (!user) {
+      setToast("Sign in to reply");
+      setView("profile");
+      return;
+    }
+
+    try {
+      await ensureProfile(user);
+      const { error } = await supabase.from("comments").insert({
+        id: String(Date.now()),
+        post_id: postId,
+        author_id: user.id,
+        body: clean,
+      });
+      if (error) throw new Error(error.message);
+
+      setReplyDrafts((current) => ({ ...current, [postId]: "" }));
+      await loadPosts();
+      setToast("Reply added");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Reply failed");
+    }
   }
 
   async function share(post: BantrPost) {
@@ -167,13 +388,21 @@ export default function Home() {
     setToast("Share link ready");
   }
 
+  async function signOut() {
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile({ id: "", handle: "@bantrbok", displayName: "Bantrbok", email: "" });
+    setPassword("");
+    setToast("Signed out");
+  }
+
   return (
     <main className="bantrboks-shell">
       <section className="phone-frame" aria-label="Bantrboks launch web app">
         <header className="app-header">
           <Brand />
           <button className="profile-dot" onClick={() => setView("profile")} aria-label="Open profile">
-            {initials(profile.displayName || profile.handle)}
+            <Avatar value={profile.avatar} fallback={initials(profile.displayName || profile.handle)} />
           </button>
         </header>
 
@@ -188,6 +417,7 @@ export default function Home() {
           {view === "feed" && (
             <Feed
               posts={posts}
+              isLoadingPosts={isLoadingPosts}
               replyDrafts={replyDrafts}
               setReplyDrafts={setReplyDrafts}
               onReact={react}
@@ -205,8 +435,10 @@ export default function Home() {
               fileInputRef={fileInputRef}
               handleMedia={handleMedia}
               createPost={createPost}
+              isPosting={isPosting}
               clearPost={() => {
                 setDraft("");
+                setMediaFile(undefined);
                 setMediaPreview(undefined);
                 setMediaName(undefined);
                 setToast("Draft cleared");
@@ -217,7 +449,19 @@ export default function Home() {
           {view === "ladder" && <Ladder ladder={ladder} />}
 
           {view === "profile" && (
-            <Profile profile={profile} setProfile={setProfile} postCount={posts.length} />
+            <Profile
+              profile={profile}
+              setProfile={setProfile}
+              postCount={posts.filter((post) => post.authorId === user?.id).length}
+              authMode={authMode}
+              setAuthMode={setAuthMode}
+              password={password}
+              setPassword={setPassword}
+              user={user}
+              authenticate={authenticate}
+              isAuthBusy={isAuthBusy}
+              signOut={signOut}
+            />
           )}
         </div>
 
@@ -231,9 +475,7 @@ export default function Home() {
 
       <aside className="desktop-story" aria-label="Bantrboks launch summary">
         <p className="eyebrow">Single-room rivalry web app</p>
-        <h2>
-          Bantrboks is the Boks vs ABs room, ready for launch.
-        </h2>
+        <h2>Bantrboks is the Boks vs ABs room, ready for launch.</h2>
         <p>
           A mobile-first web experience for public bantr, fast posting, reactions, replies,
           sharing and a room ladder. It keeps the Bantrbox energy, but locks the experience to
@@ -268,6 +510,7 @@ function RoomBadge() {
 
 function Feed({
   posts,
+  isLoadingPosts,
   replyDrafts,
   setReplyDrafts,
   onReact,
@@ -275,19 +518,29 @@ function Feed({
   onShare,
 }: {
   posts: BantrPost[];
-  replyDrafts: Record<number, string>;
-  setReplyDrafts: React.Dispatch<React.SetStateAction<Record<number, string>>>;
-  onReact: (postId: number, type: "slap" | "fdrop") => void;
-  onReply: (postId: number) => void;
+  isLoadingPosts: boolean;
+  replyDrafts: Record<string, string>;
+  setReplyDrafts: Dispatch<SetStateAction<Record<string, string>>>;
+  onReact: (postId: string, type: ReactionType) => void;
+  onReply: (postId: string) => void;
   onShare: (post: BantrPost) => void;
 }) {
   return (
     <section className="feed-stack">
       <div className="room-strip">
-        <MiniRoomCard title="Boks pressure" handle="@bokrage" />
-        <MiniRoomCard title="ABs receipts" handle="@hakaheat" accent="green" />
-        <MiniRoomCard title="Scrum court" handle="@scrumcourt" accent="cyan" />
+        <MiniRoomCard title="Boks pressure" handle="@bantrboks" />
+        <MiniRoomCard title="ABs receipts" handle="@bantrabs" accent="green" />
+        <MiniRoomCard title="Scrum court" handle="@rugbybantr" accent="cyan" />
       </div>
+
+      {isLoadingPosts && <div className="empty-card">Loading the Boks vs ABs room...</div>}
+
+      {!isLoadingPosts && posts.length === 0 && (
+        <div className="empty-card">
+          <strong>No room bantr yet</strong>
+          <span>Create the first Boks vs ABs post.</span>
+        </div>
+      )}
 
       {posts.map((post, index) => (
         <article className={`post-card theme-${index % 4}`} key={post.id}>
@@ -298,8 +551,12 @@ function Feed({
           <MediaBlock post={post} />
           <p className="open-hint">Tap to open full bantr</p>
           <div className="reaction-grid">
-            <button onClick={() => onReact(post.id, "slap")}>👋 <span>SLAP</span><strong>{post.slaps}</strong></button>
-            <button onClick={() => onReact(post.id, "fdrop")}>🔥 <span>F Drop</span><strong>{post.fdrops}</strong></button>
+            <button onClick={() => onReact(post.id, "slap")}>
+              👋 <span>SLAP</span><strong>{post.slaps}</strong>
+            </button>
+            <button onClick={() => onReact(post.id, "mic")}>
+              🔥 <span>F Drop</span><strong>{post.fdrops}</strong>
+            </button>
             <button>
               💬 <span>Reply</span><strong>{post.replies.length}</strong>
             </button>
@@ -317,9 +574,9 @@ function Feed({
           </div>
           {post.replies.length > 0 && (
             <div className="reply-list">
-              {post.replies.slice(-3).map((replyText, replyIndex) => (
-                <p key={`${post.id}-${replyIndex}`}>
-                  <strong>@bantrfan</strong> {replyText}
+              {post.replies.slice(-6).map((reply) => (
+                <p key={reply.id}>
+                  <strong>{reply.handle}</strong> {reply.body}
                 </p>
               ))}
             </div>
@@ -338,24 +595,32 @@ function Create({
   fileInputRef,
   handleMedia,
   createPost,
+  isPosting,
   clearPost,
 }: {
   draft: string;
   setDraft: (value: string) => void;
   mediaPreview?: string;
   mediaName?: string;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  fileInputRef: RefObject<HTMLInputElement | null>;
   handleMedia: (event: ChangeEvent<HTMLInputElement>) => void;
   createPost: () => void;
+  isPosting: boolean;
   clearPost: () => void;
 }) {
+  const isVideo = Boolean(mediaPreview && /\.(mp4|mov|webm|ogg)$/i.test(mediaName ?? ""));
+
   return (
     <section className="create-stack">
       {(draft || mediaPreview) && (
         <div className="preview-card">
           <h2>Preview</h2>
           {mediaPreview ? (
-            <img src={mediaPreview} alt={mediaName ?? "Selected media"} />
+            isVideo ? (
+              <video src={mediaPreview} controls playsInline />
+            ) : (
+              <img src={mediaPreview} alt={mediaName ?? "Selected media"} />
+            )
           ) : (
             <div className="media-placeholder">BOKS VS ABS BANTRJAB</div>
           )}
@@ -367,12 +632,12 @@ function Create({
         <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          maxLength={180}
-          rows={draft.length > 80 ? 4 : 2}
+          maxLength={100}
+          rows={draft.length > 80 ? 4 : 1}
           placeholder="What do you want to bantr about?"
         />
         <span>{room.hash}</span>
-        <strong>{draft.length}/180</strong>
+        <strong>{draft.length}/100</strong>
       </label>
 
       <div className="tool-row">
@@ -384,11 +649,13 @@ function Create({
 
       <div className="launch-note">
         <h2>Locked room</h2>
-        <p>Every post goes into {room.name}. No room picker needed for this launch version.</p>
+        <p>Every post goes into {room.name}. The app room and this web room share the same feed.</p>
       </div>
 
-      <button className="primary-action" onClick={createPost}>Post</button>
-      <button className="danger-action" onClick={clearPost}>Discard post</button>
+      <button className="primary-action" onClick={createPost} disabled={isPosting}>
+        {isPosting ? "Posting..." : "Post"}
+      </button>
+      <button className="danger-action" onClick={clearPost} disabled={isPosting}>Discard post</button>
     </section>
   );
 }
@@ -402,12 +669,13 @@ function Ladder({
     <section className="ladder-stack">
       <div className="ladder-toggle">
         <button className="active">Room ladder</button>
-        <button>Combined later</button>
+        <button>Combined in app</button>
       </div>
+      {ladder.length === 0 && <div className="empty-card">The room ladder will appear once people post and react.</div>}
       {ladder.map((row, index) => (
         <article className={`ladder-row row-${index}`} key={row.handle}>
           <span className="rank">{index + 1}</span>
-          <span className="avatar">{row.avatar}</span>
+          <Avatar value={row.avatar} fallback={initials(row.displayName || row.handle)} />
           <div>
             <h2>{row.handle}</h2>
             <p>{row.displayName}</p>
@@ -423,23 +691,49 @@ function Profile({
   profile,
   setProfile,
   postCount,
+  authMode,
+  setAuthMode,
+  password,
+  setPassword,
+  user,
+  authenticate,
+  isAuthBusy,
+  signOut,
 }: {
-  profile: { handle: string; displayName: string; email: string };
-  setProfile: React.Dispatch<React.SetStateAction<{ handle: string; displayName: string; email: string }>>;
+  profile: ProfileData;
+  setProfile: Dispatch<SetStateAction<ProfileData>>;
   postCount: number;
+  authMode: "sign-in" | "create";
+  setAuthMode: (mode: "sign-in" | "create") => void;
+  password: string;
+  setPassword: (value: string) => void;
+  user: User | null;
+  authenticate: () => void;
+  isAuthBusy: boolean;
+  signOut: () => void;
 }) {
   return (
     <section className="profile-stack">
       <div className="profile-card">
-        <span className="avatar big">{initials(profile.displayName || profile.handle)}</span>
+        <Avatar value={profile.avatar} fallback={initials(profile.displayName || profile.handle)} size="big" />
         <h2>{profile.handle}</h2>
-        <p>{profile.displayName}</p>
+        <p>{user ? "Signed in to Bantrboks" : "Join the Boks vs ABs room"}</p>
         <div className="profile-stats">
           <span>{postCount}<small>bantrs</small></span>
           <span>{room.left}<small>side</small></span>
           <span>{room.right}<small>rival</small></span>
         </div>
       </div>
+
+      <div className="auth-tabs">
+        <button className={authMode === "create" ? "active" : ""} onClick={() => setAuthMode("create")}>
+          Create
+        </button>
+        <button className={authMode === "sign-in" ? "active" : ""} onClick={() => setAuthMode("sign-in")}>
+          Sign in
+        </button>
+      </div>
+
       <label>
         Display name
         <input
@@ -460,9 +754,26 @@ function Profile({
           value={profile.email}
           onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))}
           placeholder="you@example.com"
+          type="email"
         />
       </label>
-      <button className="primary-action">Join Bantrboks</button>
+      <label>
+        Password
+        <input
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="Password"
+          type="password"
+        />
+      </label>
+      <button className="primary-action" onClick={authenticate} disabled={isAuthBusy}>
+        {isAuthBusy ? "Working..." : authMode === "create" ? "Join Bantrboks" : "Sign in"}
+      </button>
+      {user && (
+        <button className="danger-action" onClick={signOut}>
+          Sign out
+        </button>
+      )}
     </section>
   );
 }
@@ -479,10 +790,19 @@ function MiniRoomCard({ title, handle, accent = "yellow" }: { title: string; han
 }
 
 function MediaBlock({ post }: { post: BantrPost }) {
-  if (post.mediaUrl) {
+  const media = post.mediaUrl ?? post.audioUrl;
+  if (media) {
+    const isVideo = /\.(mp4|mov|webm|ogg)(\?|$)/i.test(media);
+    const isAudio = /\.(m4a|aac|mp3|mpeg|webm)(\?|$)/i.test(media) && !isVideo;
     return (
       <div className="media-frame">
-        <img src={post.mediaUrl} alt={post.mediaName ?? "Bantr media"} />
+        {isVideo ? (
+          <video src={media} controls playsInline />
+        ) : isAudio ? (
+          <audio src={media} controls />
+        ) : (
+          <img src={media} alt="Bantr media" />
+        )}
       </div>
     );
   }
@@ -503,7 +823,7 @@ function MediaBlock({ post }: { post: BantrPost }) {
 function PostHeader({ post }: { post: BantrPost }) {
   return (
     <div className="post-head">
-      <span className="avatar">{post.avatar}</span>
+      <Avatar value={post.avatar} fallback={initials(post.displayName || post.handle)} />
       <div>
         <h2>{post.handle}</h2>
         <p>{post.displayName} · {post.createdAt}</p>
@@ -532,6 +852,47 @@ function NavButton({
   );
 }
 
+function Avatar({ value, fallback, size }: { value?: string; fallback: string; size?: "big" }) {
+  const isImage = Boolean(value && /^https?:\/\//i.test(value));
+  return (
+    <span className={`avatar ${size === "big" ? "big" : ""}`}>
+      {isImage ? <img src={value} alt="" /> : value || fallback}
+    </span>
+  );
+}
+
+function postFromRow(row: any): BantrPost {
+  const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+  const reactions = Array.isArray(row.post_reactions) ? row.post_reactions : [];
+  const comments = Array.isArray(row.comments) ? row.comments : [];
+  const handle = normalizeHandle(profile?.handle ?? "bantrbok");
+  const displayName = profile?.display_name ?? handle.replace("@", "");
+
+  return {
+    id: String(row.id),
+    authorId: String(row.author_id),
+    handle,
+    displayName,
+    avatar: profile?.avatar || initials(displayName || handle),
+    body: row.body ?? "",
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    mediaUrl: row.media_url ?? undefined,
+    audioUrl: row.audio_url ?? undefined,
+    slaps: reactions.filter((reaction: { reaction?: string }) => reaction.reaction === "slap").length,
+    fdrops: reactions.filter((reaction: { reaction?: string }) => reaction.reaction === "mic").length,
+    replies: comments
+      .filter((comment: any) => !comment.deleted_at)
+      .sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)))
+      .map((comment: any) => ({
+        id: String(comment.id),
+        body: comment.body ?? "",
+        handle: normalizeHandle((Array.isArray(comment.profiles) ? comment.profiles[0] : comment.profiles)?.handle ?? "bantrfan"),
+        createdAt: timeAgo(comment.created_at),
+      })),
+    createdAt: timeAgo(row.created_at),
+  };
+}
+
 function initials(value: string) {
   return value.replace("@", "").split(/\s+/).map((word) => word[0]).join("").slice(0, 2).toUpperCase() || "BB";
 }
@@ -539,6 +900,17 @@ function initials(value: string) {
 function normalizeHandle(value: string) {
   const clean = value.trim().replace(/^@+/, "").replace(/[^a-zA-Z0-9_]/g, "");
   return clean ? `@${clean}` : "@";
+}
+
+function timeAgo(value?: string) {
+  const created = value ? new Date(value).getTime() : Date.now();
+  const diff = Math.max(0, Date.now() - created);
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "Now";
+  if (minutes < 60) return `${minutes}M`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}H`;
+  return `${Math.floor(hours / 24)}D`;
 }
 
 function viewTitle(view: View) {
