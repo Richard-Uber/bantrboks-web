@@ -1,3 +1,5 @@
+import { BantrboksAuth } from "./BantrboksAuth";
+
 const appStoreUrl =
   "https://apps.apple.com/app/bantrbox/id6791587145";
 const playStoreUrl =
@@ -83,27 +85,7 @@ export default function Home() {
           />
         </section>
 
-        <form className="mobile-login" aria-label="Bantrboks account access">
-          <div className="mobile-auth-tabs" aria-label="Account mode">
-            <button className="is-active" type="button">
-              Create
-            </button>
-            <button type="button">Sign in</button>
-          </div>
-          <input type="text" placeholder="Display name" aria-label="Display name" />
-          <input type="text" placeholder="Handle" aria-label="Handle" />
-          <input type="email" placeholder="Email" aria-label="Email" />
-          <input type="password" placeholder="Password" aria-label="Password" />
-          <button className="mobile-auth-primary" type="button">
-            Create Account
-          </button>
-          <button className="mobile-auth-secondary" type="button">
-            I already have an account
-          </button>
-          <a href="https://bantrbox.com/support" target="_blank" rel="noreferrer">
-            Trouble signing in?
-          </a>
-        </form>
+        <BantrboksAuth />
 
         <section className="mobile-hero">
           <h1>
@@ -141,31 +123,23 @@ export default function Home() {
           </div>
         </section>
 
-        <img
-          className="mobile-phone-preview"
-          src="/brand/bantrboks-phone-preview.png"
-          alt="Bantrboks app preview"
-          draggable={false}
-        />
-
-        <section className="mobile-cards" aria-label="Bantrboks policies">
+        <nav className="mobile-policy-links" aria-label="Bantrboks policies">
           <a href="https://bantrbox.com/privacy" target="_blank" rel="noreferrer">
-            <span>Privacy Policy</span>
-            <small>Learn how we protect your data.</small>
+            Privacy
           </a>
           <a href="https://bantrbox.com/terms" target="_blank" rel="noreferrer">
-            <span>Terms & Conditions</span>
-            <small>Read the rules that govern Bantrboks.</small>
+            Terms
           </a>
           <a href="https://bantrbox.com/community-guidelines" target="_blank" rel="noreferrer">
-            <span>Community Guidelines</span>
-            <small>Build a better community together.</small>
+            Guidelines
           </a>
           <a href="https://bantrbox.com/safety-standards" target="_blank" rel="noreferrer">
-            <span>Safety Standards</span>
-            <small>Our commitment to a safer experience.</small>
+            Safety
           </a>
-        </section>
+          <a href="https://bantrbox.com/support" target="_blank" rel="noreferrer">
+            Support
+          </a>
+        </nav>
 
         <a className="mobile-email" href="mailto:support@ubermobi.com">
           support@ubermobi.com
