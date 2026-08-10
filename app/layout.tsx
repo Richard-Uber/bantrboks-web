@@ -13,15 +13,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bantrboks",
-  description: "Springboks vs All Blacks bantr. Drop takes, win likes, climb the Boks vs ABs ladder.",
+  title: "Bantrboks | Drop takes. Win likes. Climb the board.",
+  description:
+    "Bantrboks is the Springboks vs All Blacks bantr room. Drop takes, win likes, and climb the board.",
   icons: {
     icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+      { url: "/brand/bantrbox-tab-icon.png", type: "image/png" },
     ],
-    shortcut: "/favicon.png",
+    shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "Bantrboks",
+    description: "Drop takes. Win likes. Climb the board.",
+    images: ["/brand/bantrboks-approved-website-landing.png"],
   },
 };
 
