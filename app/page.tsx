@@ -72,21 +72,27 @@ export default function Home() {
             alt="Bantrboks"
             draggable={false}
           />
-          <nav className="mobile-nav" aria-label="Legal and support links">
-            <a href="https://bantrbox.com/privacy" target="_blank" rel="noreferrer">
-              Privacy
-            </a>
-            <a href="https://bantrbox.com/terms" target="_blank" rel="noreferrer">
-              Terms
-            </a>
-            <a href="https://bantrbox.com/support" target="_blank" rel="noreferrer">
-              Support
-            </a>
-          </nav>
         </header>
 
+        <section className="mobile-room-entry" aria-label="Bantrboks room">
+          <div className="mobile-room-pill">
+            <span>BOKS</span>
+            <strong>VS</strong>
+            <span>ABS</span>
+          </div>
+          <p>Springboks vs All Blacks</p>
+        </section>
+
+        <form className="mobile-login" aria-label="Bantrboks sign in">
+          <input type="email" placeholder="Email" aria-label="Email" />
+          <input type="password" placeholder="Password" aria-label="Password" />
+          <button type="button">Sign in</button>
+          <a href="https://bantrbox.com/support" target="_blank" rel="noreferrer">
+            Trouble signing in?
+          </a>
+        </form>
+
         <section className="mobile-hero">
-          <p className="mobile-kicker">Springboks vs All Blacks bantr room</p>
           <h1>
             Drop takes.
             <span>Win likes.</span>
@@ -98,13 +104,26 @@ export default function Home() {
             for fast-moving debate.
           </p>
           <div className="mobile-actions">
-            <a href={appStoreUrl} target="_blank" rel="noreferrer" className="store-button">
-              <span>Download on the</span>
-              App Store
+            <a href={appStoreUrl} target="_blank" rel="noreferrer" className="store-button apple">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M16.4 12.7c0-2 1.6-3 1.7-3.1-1-.1-1.9-.6-2.4-1.3-1-.2-2 .6-2.6.6-.7 0-1.7-.6-2.7-.6-1.4 0-2.7.8-3.4 2.1-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.7-.7 1.2 0 1.6.7 2.7.7s1.8-1 2.5-2c.8-1.2 1.1-2.3 1.1-2.4-.1 0-2.2-.8-2.2-3Zm-2.1-5.4c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6.9.1 1.9-.5 2.5-1.2Z" />
+              </svg>
+              <span>
+                <small>Download on the</small>
+                App Store
+              </span>
             </a>
             <a href={playStoreUrl} target="_blank" rel="noreferrer" className="store-button play">
-              <span>Get it on</span>
-              Google Play
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#34a853" d="M4.2 3.6c-.2.2-.3.6-.3 1v14.8c0 .4.1.7.3 1l8.3-8.4-8.3-8.4Z" />
+                <path fill="#fbbc04" d="m15.4 9.1-2.9 2.9 2.9 2.9 3.4-1.9c1.1-.6 1.1-1.4 0-2l-3.4-1.9Z" />
+                <path fill="#4285f4" d="m4.2 3.6 8.3 8.4 2.9-2.9L5.8 3.7c-.7-.4-1.3-.4-1.6-.1Z" />
+                <path fill="#ea4335" d="m4.2 20.4c.3.3.9.3 1.6-.1l9.6-5.4-2.9-2.9-8.3 8.4Z" />
+              </svg>
+              <span>
+                <small>Get it on</small>
+                Google Play
+              </span>
             </a>
           </div>
         </section>
