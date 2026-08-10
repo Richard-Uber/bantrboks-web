@@ -1,12 +1,14 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
 type AuthMode = "create" | "signin";
 
 const roomName = "Springboks vs All Blacks";
 const roomSlug = "springboksvsallblacks";
+const legalVersion = "bantrboks-2026-08";
 
 function normaliseHandle(value: string) {
   return value
@@ -27,6 +29,100 @@ export function BantrboksAuth() {
   const [busy, setBusy] = useState(false);
 
   const cleanHandle = useMemo(() => normaliseHandle(handle), [handle]);
+
+  async function syncProfile(user?: User | null) {
+    const activeUser = user ?? (await supabase.auth.getUser()).data.user;
+
+    if (!activeUser?.id || !activeUser.email) {
+      return false;
+    }
+
+    const meta = activeUser.user_metadata ?? {};
+    const emailHandle = normaliseHandle(activeUser.email.split("@")[0] ?? "");
+    const profileHandle = normaliseHandle(
+      String(meta.handle || meta.username || cleanHandle || emailHandle)
+    );
+    const profileName = String(
+      meta.display_name || meta.full_name || displayName.trim() || profileHandle
+    ).trim();
+    const avatar = (profileHandle || profileName || "bb").slice(0, 2).toUpperCase();
+    const now = new Date().toISOString();
+
+    if (!profileHandle || !profileName) {
+      return false;
+    }
+
+    const { error: profileError } = await supabase.from("profiles").upsert(
+      {
+        id: activeUser.id,
+        email: activeUser.email.trim().toLowerCase(),
+        handle: profileHandle,
+        display_name: profileName,
+        avatar,
+        location: "",
+        bio: "",
+        bantr_feed: [roomSlug],
+        permission_preferences: {
+          product: "bantrboks",
+          default_room: roomSlug,
+          current_room: roomSlug,
+        },
+        terms_accepted_at: now,
+        privacy_accepted_at: now,
+        legal_version: legalVersion,
+      },
+      { onConflict: "id" }
+    );
+
+    if (profileError) {
+      setError(`Your email is verified, but the profile was not created: ${profileError.message}`);
+      return false;
+    }
+
+    return true;
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function finishVerifiedSession() {
+      const { data } = await supabase.auth.getSession();
+
+      if (!isMounted || !data.session?.user) {
+        return;
+      }
+
+      const synced = await syncProfile(data.session.user);
+
+      if (isMounted && synced) {
+        setMessage("Email verified. Your Bantrboks account is ready.");
+
+        if (window.location.hash || window.location.search.includes("verified")) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    }
+
+    finishVerifiedSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!isMounted || !session?.user) {
+        return;
+      }
+
+      const synced = await syncProfile(session.user);
+      if (isMounted && synced) {
+        setMessage("Email verified. Your Bantrboks account is ready.");
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,9 +148,9 @@ export function BantrboksAuth() {
 
     if (mode === "create") {
       const redirectTo =
-        typeof window === "undefined" ? undefined : `${window.location.origin}/`;
+        typeof window === "undefined" ? undefined : `${window.location.origin}/?verified=1`;
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password,
         options: {
           emailRedirectTo: redirectTo,
@@ -76,16 +172,23 @@ export function BantrboksAuth() {
         return;
       }
 
+      if (data.session?.user) {
+        const synced = await syncProfile(data.session.user);
+        if (!synced) {
+          return;
+        }
+      }
+
       setMessage(
         data.session
-          ? "Account created. You are signed in to Bantrboks."
+          ? "Account created. Your Bantrboks profile is ready."
           : "Account created. Check your inbox to verify your email, then return here to sign in."
       );
       return;
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
       password,
     });
 
@@ -95,7 +198,12 @@ export function BantrboksAuth() {
       return;
     }
 
-    setMessage("Signed in. Welcome to Bantrboks.");
+    const synced = await syncProfile(data.user);
+    if (!synced) {
+      return;
+    }
+
+    setMessage("Signed in. Your Bantrboks profile is ready.");
   }
 
   function switchMode(nextMode: AuthMode) {
