@@ -1074,11 +1074,11 @@ a {
 
 .approved-division {
   position: absolute;
-  top: 5.7%;
-  right: 8.6%;
+  top: 14.4%;
+  right: 16.2%;
   z-index: 4;
   color: #f8f6ec;
-  font-size: 1.05vw;
+  font-size: clamp(13px, 0.95vw, 17px);
   font-weight: 900;
   text-decoration: none;
   text-shadow: 0 0 0.8vw rgba(53, 213, 213, 0.35);
