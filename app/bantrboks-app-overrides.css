@@ -1,0 +1,14 @@
+/* Keep the signed-in web app on one continuous black surface. */
+.bb-app,
+.bb-app .bb-app-top,
+.bb-app .bb-content,
+.bb-app .bb-feed,
+.bb-app .bb-create {
+  background: #000;
+  background-image: none;
+}
+
+.bb-app .bb-app-logo {
+  background: transparent;
+  box-shadow: none;
+}
