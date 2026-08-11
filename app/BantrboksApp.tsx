@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, FormEvent, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, Dispatch, FormEvent, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
@@ -61,6 +61,18 @@ function initials(profile?: Profile | null) {
   return source.slice(0, 2).toUpperCase();
 }
 
+function isImageAvatar(value?: string | null) {
+  return Boolean(value && (/^https?:\/\//.test(value) || value.startsWith("/") || value.startsWith("data:")));
+}
+
+function Avatar({ profile, className = "" }: { profile?: Profile | null; className?: string }) {
+  return (
+    <span className={`bb-avatar ${className}`.trim()}>
+      {isImageAvatar(profile?.avatar) ? <img src={profile?.avatar ?? ""} alt="" /> : initials(profile)}
+    </span>
+  );
+}
+
 function formatAge(value: string) {
   const diff = Date.now() - new Date(value).getTime();
   const minutes = Math.max(1, Math.floor(diff / 60000));
@@ -87,8 +99,13 @@ export function BantrboksApp({ session }: { session: Session }) {
   const [status, setStatus] = useState("");
   const [chatDraft, setChatDraft] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [createMediaFile, setCreateMediaFile] = useState<File | null>(null);
+  const [createMediaPreview, setCreateMediaPreview] = useState("");
   const chatChannel = useRef<RealtimeChannel | null>(null);
   const chatEnd = useRef<HTMLDivElement | null>(null);
+  const galleryInput = useRef<HTMLInputElement | null>(null);
+  const cameraInput = useRef<HTMLInputElement | null>(null);
+  const avatarInput = useRef<HTMLInputElement | null>(null);
 
   const loadData = useCallback(async () => {
     const [profileRes, postsRes, commentsRes, reactionsRes, notificationsRes] =
@@ -180,33 +197,85 @@ export function BantrboksApp({ session }: { session: Session }) {
       .sort((a, b) => b.score - a.score);
   }, [postStats, posts]);
 
+  function chooseCreateMedia(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) return;
+    if (createMediaPreview) URL.revokeObjectURL(createMediaPreview);
+    setCreateMediaFile(file);
+    setCreateMediaPreview(URL.createObjectURL(file));
+    event.target.value = "";
+  }
+
+  function clearCreateDraft() {
+    if (createMediaPreview) URL.revokeObjectURL(createMediaPreview);
+    setCreateMediaPreview("");
+    setCreateMediaFile(null);
+    setNewPost("");
+  }
+
+  async function uploadMediaFile(file: File, folder: string) {
+    const safeExt = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const path = `${folder}/${session.user.id}/${Date.now()}.${safeExt}`;
+    const { error } = await supabase.storage.from("bantrbox-media").upload(path, file, {
+      upsert: true,
+      contentType: file.type || undefined,
+    });
+    if (error) throw error;
+    const { data } = supabase.storage.from("bantrbox-media").getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function updateAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) return;
+    setBusy("avatar");
+    setStatus("");
+    try {
+      const publicUrl = await uploadMediaFile(file, "bantrboks-avatars");
+      const { error } = await supabase.from("profiles").update({ avatar: publicUrl }).eq("id", session.user.id);
+      if (error) throw error;
+      setProfile((current) => (current ? { ...current, avatar: publicUrl } : current));
+      setStatus("Profile picture updated.");
+      loadData();
+    } catch (error) {
+      setStatus(`Profile picture did not update: ${error instanceof Error ? error.message : "Upload failed."}`);
+    } finally {
+      setBusy("");
+      event.target.value = "";
+    }
+  }
+
   async function createPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!newPost.trim()) {
-      setStatus("Write a bantr first.");
+    const body = newPost.trim();
+    if (!body && !createMediaFile) {
+      setStatus("Add text or media before posting.");
       return;
     }
     setBusy("post");
     setStatus("");
 
-    const { error } = await supabase.from("posts").insert({
-      id: String(Date.now()),
-      author_id: session.user.id,
-      body: newPost.trim(),
-      tags: [roomSlug, "bantrbox"],
-      visibility: "Everyone",
-    });
+    try {
+      const mediaUrl = createMediaFile ? await uploadMediaFile(createMediaFile, "bantrboks-posts") : null;
+      const { error } = await supabase.from("posts").insert({
+        id: String(Date.now()),
+        author_id: session.user.id,
+        body,
+        tags: [roomSlug, "bantrbox"],
+        media_url: mediaUrl,
+        visibility: "Everyone",
+      });
+      if (error) throw error;
 
-    setBusy("");
-    if (error) {
-      setStatus(`Bantr did not post: ${error.message}`);
-      return;
+      clearCreateDraft();
+      setStatus("Bantr posted to the Boks vs ABs room.");
+      setView("home");
+      loadData();
+    } catch (error) {
+      setStatus(`Bantr did not post: ${error instanceof Error ? error.message : "Upload failed."}`);
+    } finally {
+      setBusy("");
     }
-
-    setNewPost("");
-    setStatus("Bantr posted to the Boks vs ABs room.");
-    setView("home");
-    loadData();
   }
 
   async function react(postId: string, reaction: "slap" | "mic") {
@@ -293,22 +362,16 @@ export function BantrboksApp({ session }: { session: Session }) {
       <header className="bb-app-top">
         <img className="bb-app-logo" src="/bantrboks-logo.png" alt="Bantrboks" />
         <button className="bb-profile-dot" type="button" onClick={() => setView("profile")}>
-          {initials(profile)}
+          <Avatar profile={profile} />
         </button>
       </header>
 
       <section className="bb-room-hero">
-        <div className="bb-room-icon" aria-label={roomName}>
-          <span>BOKS</span>
-          <strong>VS</strong>
-          <span>ABS</span>
-        </div>
-        <p>Single room: {roomName}</p>
+        <img src="/brand/bantrboks-room-boks-abs.png" alt="BOKS vs ABS Bantrboks room" />
       </section>
 
       <section className="bb-viewbar">
         <h1>{view === "home" ? "Bantr" : view === "ranking" ? "Ladder" : view === "create" ? "Create" : view === "notifications" ? "Notifs" : view === "chat" ? "Live Chat" : "Profile"}</h1>
-        <span>{roomName}</span>
       </section>
 
       {status ? <p className="bb-status">{status}</p> : null}
@@ -320,12 +383,12 @@ export function BantrboksApp({ session }: { session: Session }) {
 
         {view === "ranking" ? (
           <section className="bb-card">
-            <h2>{roomName} Ladder</h2>
+            <h2>Room ladder</h2>
             <div className="bb-ladder-list">
               {leaderboard.length ? leaderboard.map((row, index) => (
                 <button className="bb-ladder-row" key={row.id} type="button" onClick={() => setView("profile")}>
                   <strong>{index + 1}</strong>
-                  <span className="bb-avatar">{initials(row.profile)}</span>
+                  <Avatar profile={row.profile} />
                   <span>
                     <b>{cleanHandle(row.profile)}</b>
                     <small>{row.profile?.display_name || "Bantrboks user"}</small>
@@ -351,10 +414,32 @@ export function BantrboksApp({ session }: { session: Session }) {
               <span>{roomHash}</span>
               <span>{newPost.length}/280</span>
             </div>
+            <input className="bb-hidden-input" ref={galleryInput} type="file" accept="image/*,video/*" onChange={chooseCreateMedia} />
+            <input className="bb-hidden-input" ref={cameraInput} type="file" accept="image/*" capture="environment" onChange={chooseCreateMedia} />
+            <div className="bb-create-tools">
+              <button type="button" onClick={() => galleryInput.current?.click()}>Gallery</button>
+              <button type="button" onClick={() => cameraInput.current?.click()}>Camera</button>
+            </div>
+            {createMediaPreview ? (
+              <div className="bb-create-preview">
+                {createMediaFile?.type.startsWith("video/") ? (
+                  <video src={createMediaPreview} controls />
+                ) : (
+                  <img src={createMediaPreview} alt="Selected bantr media" />
+                )}
+                <button type="button" onClick={() => {
+                  if (createMediaPreview) URL.revokeObjectURL(createMediaPreview);
+                  setCreateMediaPreview("");
+                  setCreateMediaFile(null);
+                }}>
+                  Remove media
+                </button>
+              </div>
+            ) : null}
             <button className="bb-primary" type="submit" disabled={busy === "post"}>
               {busy === "post" ? "Posting..." : "Post"}
             </button>
-            <button className="bb-secondary danger" type="button" onClick={() => setNewPost("")}>Discard post</button>
+            <button className="bb-secondary danger" type="button" onClick={clearCreateDraft}>Discard post</button>
           </form>
         ) : null}
 
@@ -365,7 +450,7 @@ export function BantrboksApp({ session }: { session: Session }) {
               <article className="bb-notification" key={item.id}>
                 <strong>{item.kind || "Bantrboks"}</strong>
                 <p>{item.body}</p>
-                <small>{roomName} • {formatAge(item.created_at)}</small>
+                <small>{formatAge(item.created_at)}</small>
               </article>
             )) : <p className="bb-muted">No notifications yet. Replies, slaps and F Drops from this room will show here.</p>}
           </section>
@@ -393,9 +478,15 @@ export function BantrboksApp({ session }: { session: Session }) {
 
         {view === "profile" ? (
           <section className="bb-card bb-profile">
-            <span className="bb-avatar large">{initials(profile)}</span>
+            <input className="bb-hidden-input" ref={avatarInput} type="file" accept="image/*" onChange={updateAvatar} />
+            <button className="bb-avatar-button" type="button" onClick={() => avatarInput.current?.click()} disabled={busy === "avatar"}>
+              <Avatar profile={profile} className="large" />
+            </button>
             <h2>{cleanHandle(profile)}</h2>
             <p>{profile?.display_name || session.user.email}</p>
+            <button className="bb-secondary" type="button" onClick={() => avatarInput.current?.click()} disabled={busy === "avatar"}>
+              {busy === "avatar" ? "Updating..." : "Change profile picture"}
+            </button>
             {profile?.bio ? <p className="bb-bio">{profile.bio}</p> : <p className="bb-muted">No bio added yet.</p>}
             <button className="bb-secondary" type="button" onClick={signOut}>Sign out</button>
           </section>
@@ -449,7 +540,7 @@ function Feed({
         return (
           <article className="bb-post" key={post.id}>
             <header>
-              <span className="bb-avatar">{initials(post.profiles)}</span>
+              <Avatar profile={post.profiles} />
               <div>
                 <strong>{cleanHandle(post.profiles)}</strong>
                 <small>{post.profiles?.display_name || "Bantrboks user"} • {formatAge(post.created_at)}</small>

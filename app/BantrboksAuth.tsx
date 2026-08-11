@@ -45,7 +45,13 @@ export function BantrboksAuth() {
     const profileName = String(
       meta.display_name || meta.full_name || displayName.trim() || profileHandle
     ).trim();
-    const avatar = (profileHandle || profileName || "bb").slice(0, 2).toUpperCase();
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("avatar, bio")
+      .eq("id", activeUser.id)
+      .maybeSingle();
+    const avatar =
+      existingProfile?.avatar || (profileHandle || profileName || "bb").slice(0, 2).toUpperCase();
     const now = new Date().toISOString();
 
     if (!profileHandle || !profileName) {
@@ -60,7 +66,7 @@ export function BantrboksAuth() {
         display_name: profileName,
         avatar,
         location: "",
-        bio: "",
+        bio: existingProfile?.bio ?? "",
         bantr_feed: [roomSlug],
         permission_preferences: {
           product: "bantrboks",
@@ -75,7 +81,7 @@ export function BantrboksAuth() {
     );
 
     if (profileError) {
-      setError(`Your email is verified, but the profile was not created: ${profileError.message}`);
+      setError(`Your account was created, but the profile was not completed: ${profileError.message}`);
       return false;
     }
 
@@ -95,7 +101,7 @@ export function BantrboksAuth() {
       const synced = await syncProfile(data.session.user);
 
       if (isMounted && synced) {
-        setMessage("Email verified. Your Bantrboks account is ready.");
+        setMessage("Your Bantrboks account is ready.");
 
         if (window.location.hash || window.location.search.includes("verified")) {
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -114,7 +120,7 @@ export function BantrboksAuth() {
 
       const synced = await syncProfile(session.user);
       if (isMounted && synced) {
-        setMessage("Email verified. Your Bantrboks account is ready.");
+        setMessage("Your Bantrboks account is ready.");
       }
     });
 
@@ -147,13 +153,10 @@ export function BantrboksAuth() {
     setBusy(true);
 
     if (mode === "create") {
-      const redirectTo =
-        typeof window === "undefined" ? undefined : `${window.location.origin}/?verified=1`;
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
         options: {
-          emailRedirectTo: redirectTo,
           data: {
             display_name: displayName.trim(),
             full_name: displayName.trim(),
@@ -166,24 +169,41 @@ export function BantrboksAuth() {
         },
       });
 
-      setBusy(false);
       if (signUpError) {
+        setBusy(false);
         setError(signUpError.message);
         return;
       }
 
-      if (data.session?.user) {
-        const synced = await syncProfile(data.session.user);
+      let activeUser = data.session?.user ?? null;
+
+      if (!activeUser) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+
+        if (signInError) {
+          setBusy(false);
+          setError(
+            "Account created, but Supabase is still waiting for email verification. Turn off email confirmation for the Bantrboks launch flow, then sign in again."
+          );
+          return;
+        }
+
+        activeUser = signInData.user;
+      }
+
+      setBusy(false);
+
+      if (activeUser) {
+        const synced = await syncProfile(activeUser);
         if (!synced) {
           return;
         }
       }
 
-      setMessage(
-        data.session
-          ? "Account created. Your Bantrboks profile is ready."
-          : "Account created. Check your inbox to verify your email, then return here to sign in."
-      );
+      setMessage("Account created. Your Bantrboks profile is ready.");
       return;
     }
 
@@ -210,6 +230,31 @@ export function BantrboksAuth() {
     setMode(nextMode);
     setMessage("");
     setError("");
+  }
+
+  async function sendPasswordReset() {
+    setMessage("");
+    setError("");
+
+    if (!email.trim()) {
+      setError("Add your email first, then tap Trouble signing in.");
+      return;
+    }
+
+    setBusy(true);
+    const redirectTo = typeof window === "undefined" ? undefined : window.location.origin;
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      { redirectTo }
+    );
+    setBusy(false);
+
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+
+    setMessage("Password reset email sent. Check your inbox.");
   }
 
   return (
@@ -285,9 +330,9 @@ export function BantrboksAuth() {
       >
         {mode === "create" ? "I already have an account" : "Create a new account"}
       </button>
-      <a href="https://bantrbox.com/support" target="_blank" rel="noreferrer">
+      <button className="mobile-auth-link" type="button" onClick={sendPasswordReset} disabled={busy}>
         Trouble signing in?
-      </a>
+      </button>
     </form>
   );
 }

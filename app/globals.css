@@ -1071,3 +1071,192 @@ a {
     text-decoration: none;
   }
 }
+
+.approved-division {
+  position: absolute;
+  top: 5.7%;
+  right: 8.6%;
+  z-index: 4;
+  color: #f8f6ec;
+  font-size: 1.05vw;
+  font-weight: 900;
+  text-decoration: none;
+  text-shadow: 0 0 0.8vw rgba(53, 213, 213, 0.35);
+}
+
+.approved-division:hover {
+  color: #35d5d5;
+}
+
+.mobile-division {
+  color: #35d5d5;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  text-align: right;
+  text-decoration: none;
+}
+
+.mobile-auth-link {
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: #f8f6ec;
+  font: inherit;
+  font-weight: 900;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mobile-auth-link:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.bb-profile-dot {
+  padding: 0;
+  overflow: hidden;
+}
+
+.bb-profile-dot .bb-avatar {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+
+.bb-avatar {
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.bb-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.bb-avatar-button {
+  align-self: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.bb-avatar-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.bb-hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bb-room-hero {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 22px;
+}
+
+.bb-room-hero img {
+  display: block;
+  width: min(560px, 90vw);
+  max-height: 230px;
+  object-fit: cover;
+  border: 4px solid var(--bb-yellow);
+  border-radius: 26px;
+  box-shadow: 0 0 28px rgba(53, 213, 213, 0.22);
+}
+
+.bb-room-hero .bb-room-icon,
+.bb-room-hero p,
+.bb-viewbar > span {
+  display: none !important;
+}
+
+.bb-create-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 4px 0 8px;
+}
+
+.bb-create-tools button {
+  min-height: 52px;
+  border: 3px solid #35d5d5;
+  border-radius: 999px;
+  color: #35d5d5;
+  background: rgba(9, 42, 42, 0.72);
+  font: inherit;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.bb-create-tools button:hover {
+  border-color: #ffd600;
+  color: #ffd600;
+}
+
+.bb-create-preview {
+  padding: 12px;
+  border: 3px solid #35d5d5;
+  border-radius: 20px;
+  background: rgba(8, 33, 33, 0.75);
+}
+
+.bb-create-preview img,
+.bb-create-preview video {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #050505;
+}
+
+.bb-create-preview button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 10px;
+  border: 2px solid #ff6161;
+  border-radius: 999px;
+  color: #ff9b9b;
+  background: rgba(255, 97, 97, 0.1);
+  font: inherit;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+@media (max-width: 740px) {
+  .approved-division {
+    display: none;
+  }
+
+  .mobile-header {
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .mobile-logo {
+    width: min(260px, 58vw);
+  }
+
+  .bb-room-hero img {
+    width: min(360px, 78vw);
+    max-height: 150px;
+    border-radius: 18px;
+  }
+
+  .bb-create-tools {
+    grid-template-columns: 1fr;
+  }
+}

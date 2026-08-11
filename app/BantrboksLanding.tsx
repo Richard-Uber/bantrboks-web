@@ -28,6 +28,9 @@ export function BantrboksLanding() {
           alt="Bantrboks landing page: Drop takes. Win likes. Climb the board."
           draggable={false}
         />
+        <a className="approved-division" href="https://bantrbox.com" target="_blank" rel="noreferrer">
+          A division of bantrbox.com
+        </a>
         <h1 className="sr-only">Bantrboks</h1>
         <p className="sr-only">
           Public bantr drops, rankings, live chat and reaction-led feeds built for
@@ -47,6 +50,9 @@ export function BantrboksLanding() {
       <section className="mobile-landing" aria-label="Bantrboks mobile landing page">
         <header className="mobile-header">
           <img className="mobile-logo" src="/bantrboks-logo.png" alt="Bantrboks" draggable={false} />
+          <a className="mobile-division" href="https://bantrbox.com" target="_blank" rel="noreferrer">
+            A division of bantrbox.com
+          </a>
         </header>
 
         <section className="mobile-room-entry" aria-label="Bantrboks room">
