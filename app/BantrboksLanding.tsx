@@ -8,13 +8,9 @@ const appStoreUrl = "https://apps.apple.com/app/bantrbox/id6791587145";
 const playStoreUrl = "https://play.google.com/store/apps/details?id=com.bantrbox.app";
 
 const campaignHotspots = [
-  { label: "Rooms", href: "#room", className: "campaign-nav-rooms" },
-  { label: "Rankings", href: "#ladder", className: "campaign-nav-rankings" },
-  { label: "About Bantrboks", href: "#about", className: "campaign-nav-about" },
-  { label: "Download Bantrbox", href: appStoreUrl, className: "campaign-nav-download", external: true },
   { label: "Log in", href: "#account", className: "campaign-nav-login" },
-  { label: "Enter the Boks vs ABs room", href: "#account", className: "campaign-enter-room" },
-  { label: "Get the Bantrbox app", href: appStoreUrl, className: "campaign-get-app", external: true },
+  { label: "Download on the App Store", href: appStoreUrl, className: "campaign-app-store", external: true },
+  { label: "Get it on Google Play", href: playStoreUrl, className: "campaign-play-store", external: true },
   { label: "Back the Boks", href: "#account", className: "campaign-back-boks" },
   { label: "Back the ABs", href: "#account", className: "campaign-back-abs" },
   { label: "Privacy Policy", href: "https://bantrbox.com/privacy", className: "campaign-footer-privacy", external: true },
@@ -48,7 +44,7 @@ export function BantrboksLanding() {
       <section className="approved-artboard" id="room" aria-label="Bantrboks Boks vs ABs landing page">
         <img
           className="campaign-artwork"
-          src="/brand/bantrboks-rivalry-landing-v2.webp"
+          src="/brand/bantrboks-rivalry-landing-v3.webp"
           alt="Bantrboks Boks vs ABs campaign: Drop your take. Back your side. Climb the board."
           draggable={false}
         />
@@ -84,8 +80,6 @@ export function BantrboksLanding() {
         >
           Log in
         </button>
-        <span id="ladder" className="campaign-anchor campaign-anchor-ladder" aria-hidden="true" />
-        <span id="about" className="campaign-anchor campaign-anchor-about" aria-hidden="true" />
         <span id="account" className="campaign-anchor campaign-anchor-account" aria-hidden="true" />
       </section>
       <section className="mobile-landing" aria-label="Bantrboks mobile landing page">

@@ -1265,13 +1265,9 @@ a {
     0 0 0 6px #35d5d5;
 }
 
-.campaign-nav-rooms { left: 65.2%; top: 1.2%; width: 5.7%; height: 5.3%; }
-.campaign-nav-rankings { left: 71.6%; top: 1.2%; width: 6.2%; height: 5.3%; }
-.campaign-nav-about { left: 78.3%; top: 1.2%; width: 5%; height: 5.3%; }
-.campaign-nav-download { left: 83.6%; top: 1.2%; width: 6.8%; height: 5.3%; }
 .campaign-nav-login { left: 90.5%; top: 1.2%; width: 6.2%; height: 5.3%; }
-.campaign-enter-room { left: 8.8%; top: 55%; width: 13.5%; height: 8.7%; }
-.campaign-get-app { left: 33.5%; top: 55%; width: 11.5%; height: 8.7%; }
+.campaign-app-store { left: 20.5%; top: 55.1%; width: 11.7%; height: 8.4%; }
+.campaign-play-store { left: 33%; top: 55.1%; width: 11.7%; height: 8.4%; }
 .campaign-back-boks { left: 37.8%; top: 83%; width: 13%; height: 6.5%; }
 .campaign-back-abs { left: 51.5%; top: 83%; width: 13%; height: 6.5%; }
 .campaign-footer-privacy { left: 61.7%; top: 95%; width: 7%; height: 3.4%; }
@@ -1284,8 +1280,6 @@ a {
   pointer-events: none;
 }
 
-.campaign-anchor-ladder { left: 24%; top: 74%; }
-.campaign-anchor-about { left: 8%; top: 45%; }
 .campaign-anchor-account { left: 45%; top: 55%; }
 
 .hotspot-app {
@@ -1332,10 +1326,10 @@ a {
 
 .desktop-login-button {
   position: absolute;
-  left: 23.7%;
+  left: 8.8%;
   top: 55%;
   z-index: 6;
-  width: 8.9%;
+  width: 10.9%;
   height: 8.7%;
   overflow: hidden;
   border: 0;
