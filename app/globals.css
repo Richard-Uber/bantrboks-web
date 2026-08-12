@@ -1452,6 +1452,52 @@ a {
   text-align: center;
 }
 
+.mobile-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #8f8f8f;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.mobile-auth-divider::before,
+.mobile-auth-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: #3f3f3f;
+}
+
+.mobile-auth-google {
+  min-height: 54px;
+  width: 100%;
+  border: 2px solid #4a4a4a;
+  border-radius: 999px;
+  background: #fff;
+  color: #171717;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mobile-auth-google svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+
+.mobile-auth-google:hover,
+.mobile-auth-google:focus-visible {
+  background: #f2f2f2;
+  border-color: #35d4de;
+}
+
 .desktop-auth-modal .mobile-auth-primary,
 .desktop-auth-modal .mobile-auth-secondary {
   height: 54px;
