@@ -47,8 +47,15 @@ export function BantrboksLanding() {
     <main className="approved-landing" id="app">
       <section className="approved-artboard" id="room" aria-label="Bantrboks Boks vs ABs landing page">
         <img
+          className="campaign-artwork"
           src="/brand/bantrboks-rivalry-landing-v1.webp"
           alt="Bantrboks Boks vs ABs campaign: Drop your take. Back your side. Climb the board."
+          draggable={false}
+        />
+        <img
+          className="campaign-brand-logo"
+          src="/bantrboks-logo.webp"
+          alt="Bantrboks"
           draggable={false}
         />
         <h1 className="sr-only">Bantrboks</h1>

@@ -1229,11 +1229,26 @@ a {
   background: #000;
 }
 
-.approved-artboard img {
+.approved-artboard .campaign-artwork {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
+  user-select: none;
+}
+
+.approved-artboard .campaign-brand-logo {
+  position: absolute;
+  left: 2.45%;
+  top: 0.65%;
+  z-index: 4;
+  display: block;
+  width: 20.5%;
+  height: 5.45%;
+  padding: 0.35% 0.7% 0.35% 0.45%;
+  object-fit: contain;
+  object-position: left center;
+  background: #000;
   user-select: none;
 }
 
