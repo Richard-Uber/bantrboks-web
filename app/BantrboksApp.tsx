@@ -13,6 +13,10 @@ type Profile = {
   avatar: string | null;
   bio: string | null;
 };
+type AccountMembership = {
+  profile: Profile;
+  role: "owner" | "admin" | "editor";
+};
 type Post = {
   id: string;
   author_id: string;
@@ -271,6 +275,12 @@ async function sharePost(post: Post) {
 export function BantrboksApp({ session }: { session: Session }) {
   const [view, setView] = useState<View>("home");
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [accounts, setAccounts] = useState<AccountMembership[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState(session.user.id);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [createAccountOpen, setCreateAccountOpen] = useState(false);
+  const [newAccountName, setNewAccountName] = useState("");
+  const [newAccountHandle, setNewAccountHandle] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
@@ -291,13 +301,58 @@ export function BantrboksApp({ session }: { session: Session }) {
   const avatarInput = useRef<HTMLInputElement | null>(null);
   const viewbar = useRef<HTMLElement | null>(null);
 
+  const loadAccounts = useCallback(async () => {
+    await supabase.rpc("ensure_personal_account");
+
+    const { data: membershipRows, error: membershipError } = await supabase
+      .from("account_memberships")
+      .select("profile_id, role")
+      .eq("user_id", session.user.id)
+      .order("created_at", { ascending: true });
+
+    if (membershipError || !membershipRows?.length) {
+      const { data: personalProfile } = await supabase
+        .from("profiles")
+        .select("id, handle, display_name, avatar, bio")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (personalProfile) {
+        setAccounts([{ profile: personalProfile as Profile, role: "owner" }]);
+        setActiveProfileId(session.user.id);
+      }
+      return;
+    }
+
+    const profileIds = membershipRows.map((membership) => membership.profile_id as string);
+    const { data: managedProfiles } = await supabase
+      .from("profiles")
+      .select("id, handle, display_name, avatar, bio")
+      .in("id", profileIds);
+    const profilesById = new Map(
+      (managedProfiles ?? []).map((managedProfile) => [managedProfile.id, managedProfile as Profile])
+    );
+    const nextAccounts = membershipRows.flatMap((membership) => {
+      const managedProfile = profilesById.get(membership.profile_id as string);
+      return managedProfile
+        ? [{ profile: managedProfile, role: membership.role as AccountMembership["role"] }]
+        : [];
+    });
+
+    setAccounts(nextAccounts);
+    const savedProfileId = window.localStorage.getItem(`bantrbox-active-profile:${session.user.id}`);
+    const nextProfileId = nextAccounts.some((account) => account.profile.id === savedProfileId)
+      ? savedProfileId!
+      : nextAccounts[0]?.profile.id ?? session.user.id;
+    setActiveProfileId(nextProfileId);
+  }, [session.user.id]);
+
   const loadData = useCallback(async () => {
     const [profileRes, postsRes, commentsRes, reactionsRes, notificationsRes] =
       await Promise.all([
         supabase
           .from("profiles")
           .select("id, handle, display_name, avatar, bio")
-          .eq("id", session.user.id)
+          .eq("id", activeProfileId)
           .maybeSingle(),
         supabase
           .from("posts")
@@ -319,7 +374,7 @@ export function BantrboksApp({ session }: { session: Session }) {
         supabase
           .from("notifications")
           .select("id, body, kind, read_at, created_at")
-          .eq("user_id", session.user.id)
+          .eq("user_id", activeProfileId)
           .order("created_at", { ascending: false })
           .limit(40),
       ]);
@@ -329,11 +384,61 @@ export function BantrboksApp({ session }: { session: Session }) {
     if (commentsRes.data) setComments(commentsRes.data as unknown as Comment[]);
     if (reactionsRes.data) setReactions(reactionsRes.data as Reaction[]);
     if (notificationsRes.data) setNotifications(notificationsRes.data as NotificationRow[]);
-  }, [session.user.id]);
+  }, [activeProfileId]);
+
+  useEffect(() => {
+    loadAccounts();
+  }, [loadAccounts]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  function switchAccount(profileId: string) {
+    const nextAccount = accounts.find((account) => account.profile.id === profileId);
+    if (!nextAccount) return;
+    window.localStorage.setItem(`bantrbox-active-profile:${session.user.id}`, profileId);
+    setActiveProfileId(profileId);
+    setProfile(nextAccount.profile);
+    setAccountMenuOpen(false);
+    setCreateAccountOpen(false);
+    setStatus(`Now using ${cleanHandle(nextAccount.profile)}.`);
+  }
+
+  async function createManagedAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const handle = newAccountHandle
+      .trim()
+      .replace(/^@+/, "")
+      .replace(/[^a-zA-Z0-9_]/g, "")
+      .toLowerCase();
+    if (!newAccountName.trim() || !handle) {
+      setStatus("Add a display name and handle for the new account.");
+      return;
+    }
+
+    setBusy("account");
+    const { data, error } = await supabase.rpc("create_managed_profile", {
+      p_display_name: newAccountName.trim(),
+      p_handle: handle,
+    });
+    setBusy("");
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    setNewAccountName("");
+    setNewAccountHandle("");
+    await loadAccounts();
+    if (typeof data === "string") {
+      window.localStorage.setItem(`bantrbox-active-profile:${session.user.id}`, data);
+      setActiveProfileId(data);
+    }
+    setCreateAccountOpen(false);
+    setAccountMenuOpen(false);
+    setStatus("New Bantrbox account created and selected.");
+  }
 
   useEffect(() => {
     const channel = supabase.channel(roomChannelName);
@@ -399,7 +504,7 @@ export function BantrboksApp({ session }: { session: Session }) {
 
   async function uploadMediaFile(file: File, folder: string) {
     const safeExt = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-    const path = `${folder}/${session.user.id}/${Date.now()}.${safeExt}`;
+    const path = `${folder}/${activeProfileId}/${Date.now()}.${safeExt}`;
     const { error } = await supabase.storage.from("bantrbox-media").upload(path, file, {
       upsert: true,
       contentType: file.type || undefined,
@@ -416,7 +521,7 @@ export function BantrboksApp({ session }: { session: Session }) {
     setStatus("");
     try {
       const publicUrl = await uploadMediaFile(file, "bantrboks-avatars");
-      const { error } = await supabase.from("profiles").update({ avatar: publicUrl }).eq("id", session.user.id);
+      const { error } = await supabase.from("profiles").update({ avatar: publicUrl }).eq("id", activeProfileId);
       if (error) throw error;
       setProfile((current) => (current ? { ...current, avatar: publicUrl } : current));
       setStatus("Profile picture updated.");
@@ -443,7 +548,7 @@ export function BantrboksApp({ session }: { session: Session }) {
       const mediaUrl = createMediaFile ? await uploadMediaFile(createMediaFile, "bantrboks-posts") : null;
       const { error } = await supabase.from("posts").insert({
         id: String(Date.now()),
-        author_id: session.user.id,
+        author_id: activeProfileId,
         body,
         tags: [roomSlug, "bantrbox"],
         media_url: mediaUrl,
@@ -465,15 +570,15 @@ export function BantrboksApp({ session }: { session: Session }) {
   async function react(postId: string, reaction: "slap" | "mic") {
     setBusy(`${postId}-${reaction}`);
     const existing = reactions.find(
-      (item) => item.post_id === postId && item.user_id === session.user.id && item.reaction === reaction
+      (item) => item.post_id === postId && item.user_id === activeProfileId && item.reaction === reaction
     );
 
     const result = existing
       ? await supabase.from("post_reactions").delete().eq("id", existing.id)
       : await supabase.from("post_reactions").insert({
-          id: `${postId}-${reaction}-${session.user.id}`,
+          id: `${postId}-${reaction}-${activeProfileId}`,
           post_id: postId,
-          user_id: session.user.id,
+          user_id: activeProfileId,
           reaction,
         });
 
@@ -493,7 +598,7 @@ export function BantrboksApp({ session }: { session: Session }) {
     const { error } = await supabase.from("comments").insert({
       id: `${Date.now()}-${postId}`,
       post_id: postId,
-      author_id: session.user.id,
+      author_id: activeProfileId,
       body: replyToId ? `[[reply:${replyToId}]]${body}` : body,
     });
     setBusy("");
@@ -513,8 +618,8 @@ export function BantrboksApp({ session }: { session: Session }) {
     if (!chatDraft.trim() || !chatChannel.current) return;
 
     const message: ChatMessage = {
-      id: `${Date.now()}-${session.user.id}`,
-      userId: session.user.id,
+      id: `${Date.now()}-${activeProfileId}`,
+      userId: activeProfileId,
       handle: cleanHandle(profile),
       body: chatDraft.trim(),
       createdAt: new Date().toISOString(),
@@ -553,10 +658,71 @@ export function BantrboksApp({ session }: { session: Session }) {
     <main className={`bb-app${isComposerFocused ? " is-composing" : ""}`}>
       <header className="bb-app-top">
         <img className="bb-app-logo" src="/bantrboks-logo.webp" alt="Bantrboks" />
-        <button className="bb-profile-dot" type="button" onClick={() => setView("profile")}>
+        <button
+          className="bb-profile-dot"
+          type="button"
+          aria-label={`Account menu. Currently ${cleanHandle(profile)}`}
+          aria-expanded={accountMenuOpen}
+          onClick={() => setAccountMenuOpen((open) => !open)}
+        >
           <Avatar profile={profile} />
         </button>
       </header>
+
+      {accountMenuOpen ? (
+        <div className="bb-account-backdrop" role="presentation" onMouseDown={() => setAccountMenuOpen(false)}>
+          <section className="bb-account-switcher" role="dialog" aria-modal="true" aria-labelledby="account-switcher-title" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <small>Signed in as {session.user.email}</small>
+                <h2 id="account-switcher-title">Switch Bantrbox account</h2>
+              </div>
+              <button type="button" aria-label="Close account menu" onClick={() => setAccountMenuOpen(false)}>×</button>
+            </header>
+            <div className="bb-account-list">
+              {accounts.map((account) => (
+                <button
+                  className={account.profile.id === activeProfileId ? "is-active" : undefined}
+                  key={account.profile.id}
+                  type="button"
+                  onClick={() => switchAccount(account.profile.id)}
+                >
+                  <Avatar profile={account.profile} />
+                  <span>
+                    <strong>{cleanHandle(account.profile)}</strong>
+                    <small>{account.profile.display_name || "Bantrbox account"} · {account.role}</small>
+                  </span>
+                  <b aria-hidden="true">{account.profile.id === activeProfileId ? "✓" : ""}</b>
+                </button>
+              ))}
+            </div>
+            {createAccountOpen ? (
+              <form className="bb-account-create" onSubmit={createManagedAccount}>
+                <h3>Create another Bantrbox account</h3>
+                <input value={newAccountName} onChange={(event) => setNewAccountName(event.target.value)} placeholder="Display name" maxLength={80} autoFocus />
+                <input value={newAccountHandle} onChange={(event) => setNewAccountHandle(event.target.value)} placeholder="Handle" maxLength={30} />
+                <div>
+                  <button type="button" onClick={() => setCreateAccountOpen(false)}>Cancel</button>
+                  <button type="submit" disabled={busy === "account"}>{busy === "account" ? "Creating..." : "Create account"}</button>
+                </div>
+              </form>
+            ) : (
+              <button className="bb-add-account" type="button" onClick={() => setCreateAccountOpen(true)}>+ Create another Bantrbox account</button>
+            )}
+            <button
+              className="bb-switcher-profile"
+              type="button"
+              onClick={() => {
+                setView("profile");
+                setAccountMenuOpen(false);
+              }}
+            >
+              View active profile
+            </button>
+            <button className="bb-switcher-signout" type="button" onClick={signOut}>Sign out of all accounts</button>
+          </section>
+        </div>
+      ) : null}
 
       <BantrboksTagline />
 
@@ -658,7 +824,7 @@ export function BantrboksApp({ session }: { session: Session }) {
             <p className="bb-muted">Live chat is available for this Bantrboks room. Messages are live only and are not stored.</p>
             <div className="bb-chat-window">
               {chatMessages.length ? chatMessages.map((message) => (
-                <div className={message.userId === session.user.id ? "is-mine" : undefined} key={message.id}>
+                <div className={message.userId === activeProfileId ? "is-mine" : undefined} key={message.id}>
                   <strong>{message.handle}</strong>
                   <p>{message.body}</p>
                 </div>
@@ -680,6 +846,10 @@ export function BantrboksApp({ session }: { session: Session }) {
             </button>
             <h2>{cleanHandle(profile)}</h2>
             <p>{profile?.display_name || session.user.email}</p>
+            <p className="bb-master-email">Managed by {session.user.email}</p>
+            {accounts.length > 1 ? (
+              <button className="bb-secondary" type="button" onClick={() => setAccountMenuOpen(true)}>Switch account</button>
+            ) : null}
             <button className="bb-secondary" type="button" onClick={() => avatarInput.current?.click()} disabled={busy === "avatar"}>
               {busy === "avatar" ? "Updating..." : "Change profile picture"}
             </button>
