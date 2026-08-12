@@ -47,19 +47,23 @@ export function BantrboksLanding() {
     <main className="approved-landing" id="app">
       <section className="approved-artboard" aria-label="Bantrboks landing page">
         <img
-          src="/brand/bantrboks-approved-website-landing.png"
+          src="/brand/bantrboks-approved-website-landing.webp"
           alt="Bantrboks landing page: Drop takes. Win likes. Climb the board."
           draggable={false}
         />
         <a className="approved-division" href="https://bantrbox.com" target="_blank" rel="noreferrer">
           By Bantrbox.com
         </a>
+        <a className="desktop-support-email" href="mailto:support@ubermobi.com">
+          <span aria-hidden="true" />
+          support@ubermobi.com
+        </a>
         <h1 className="sr-only">Bantrboks</h1>
         <p className="sr-only">
           Public bantr drops, rankings, live chat and reaction-led feeds built for
           fast-moving debate.
         </p>
-        {hotspots.map((hotspot) => (
+        {hotspots.filter((hotspot) => hotspot.className !== "hotspot-email").map((hotspot) => (
           <a
             key={`${hotspot.className}-${hotspot.href}`}
             aria-label={hotspot.label}
@@ -80,7 +84,7 @@ export function BantrboksLanding() {
       </section>
       <section className="mobile-landing" aria-label="Bantrboks mobile landing page">
         <header className="mobile-header">
-          <img className="mobile-logo" src="/bantrboks-logo.png" alt="Bantrboks" draggable={false} />
+          <img className="mobile-logo" src="/bantrboks-logo.webp" alt="Bantrboks" draggable={false} />
           <a className="mobile-division" href="https://bantrbox.com" target="_blank" rel="noreferrer">
             By bantrbox.com
           </a>
@@ -91,7 +95,7 @@ export function BantrboksLanding() {
         <section className="mobile-room-entry" aria-label="Bantrboks room">
           <img
             className="mobile-room-poster"
-            src="/brand/bantrboks-room-boks-abs.png"
+            src="/brand/bantrboks-room-boks-abs.webp"
             alt="BOKS vs ABS Bantrboks room"
             draggable={false}
           />
@@ -154,7 +158,7 @@ export function BantrboksLanding() {
           >
             <header>
               <div>
-                <img src="/bantrboks-logo.png" alt="Bantrboks" />
+                <img src="/bantrboks-logo.webp" alt="Bantrboks" />
                 <h2 id="desktop-auth-title">Welcome back</h2>
                 <p>Log in to enter the Bantrboks feed.</p>
               </div>

@@ -36,7 +36,7 @@ export function BantrboksAppShell() {
   if (!ready) {
     return (
       <main className="bb-loading">
-        <img src="/bantrboks-logo.png" alt="Bantrboks" />
+        <img src="/bantrboks-logo.webp" alt="Bantrboks" />
         <p>Loading Bantrboks...</p>
       </main>
     );

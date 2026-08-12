@@ -552,7 +552,7 @@ export function BantrboksApp({ session }: { session: Session }) {
   return (
     <main className={`bb-app${isComposerFocused ? " is-composing" : ""}`}>
       <header className="bb-app-top">
-        <img className="bb-app-logo" src="/bantrboks-logo.png" alt="Bantrboks" />
+        <img className="bb-app-logo" src="/bantrboks-logo.webp" alt="Bantrboks" />
         <button className="bb-profile-dot" type="button" onClick={() => setView("profile")}>
           <Avatar profile={profile} />
         </button>
@@ -561,7 +561,7 @@ export function BantrboksApp({ session }: { session: Session }) {
       <BantrboksTagline />
 
       <section className="bb-room-hero">
-        <img src="/brand/bantrboks-room-boks-abs.png" alt="BOKS vs ABS Bantrboks room" />
+        <img src="/brand/bantrboks-room-boks-abs.webp" alt="BOKS vs ABS Bantrboks room" />
       </section>
 
       <section className="bb-viewbar" ref={viewbar}>

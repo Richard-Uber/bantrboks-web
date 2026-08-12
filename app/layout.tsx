@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Bantrboks",
     description: "Drop takes. Win likes. Climb the board.",
-    images: ["/brand/bantrboks-approved-website-landing.png"],
+    images: ["/brand/bantrboks-approved-website-landing.webp"],
   },
 };
 

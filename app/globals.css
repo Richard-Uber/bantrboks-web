@@ -1390,6 +1390,61 @@ a {
   height: 3.8%;
 }
 
+.desktop-support-email {
+  position: absolute;
+  left: 50%;
+  top: 95.15%;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(8px, 0.75vw, 13px);
+  transform: translate(-50%, -50%);
+  color: #f8f6ec;
+  font-size: clamp(12px, 1.05vw, 18px);
+  font-weight: 750;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.desktop-support-email > span {
+  position: relative;
+  display: block;
+  width: clamp(18px, 1.55vw, 27px);
+  aspect-ratio: 4 / 3;
+  border: max(1.5px, 0.12vw) solid #ffd600;
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(255, 214, 0, 0.16);
+}
+
+.desktop-support-email > span::before,
+.desktop-support-email > span::after {
+  position: absolute;
+  top: 18%;
+  width: 57%;
+  height: max(1.5px, 0.12vw);
+  content: "";
+  background: #ffd600;
+}
+
+.desktop-support-email > span::before {
+  left: 3%;
+  transform: rotate(33deg);
+  transform-origin: left center;
+}
+
+.desktop-support-email > span::after {
+  right: 3%;
+  transform: rotate(-33deg);
+  transform-origin: right center;
+}
+
+.desktop-support-email:hover,
+.desktop-support-email:focus-visible {
+  color: #35d5d5;
+  outline: none;
+}
+
 .mobile-landing {
   display: none;
 }
@@ -1406,7 +1461,8 @@ a {
   }
 
   .desktop-login-button,
-  .desktop-auth-backdrop {
+  .desktop-auth-backdrop,
+  .desktop-support-email {
     display: none;
   }
 
