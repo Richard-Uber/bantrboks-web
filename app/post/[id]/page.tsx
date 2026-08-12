@@ -14,7 +14,7 @@ type SharedPost = {
   } | null;
 };
 
-const fallbackImage = "/brand/bantrboks-approved-website-landing.png";
+const fallbackImage = "/brand/bantrboks-approved-website-landing.webp";
 
 async function getSharedPost(id: string) {
   const { data } = await supabase
@@ -81,7 +81,7 @@ export default async function SharedPostPage({
     <main className="shared-post-page">
       <header>
         <a href="/" aria-label="Open Bantrboks">
-          <img src="/bantrboks-logo.png" alt="Bantrboks" />
+          <img src="/bantrboks-logo.webp" alt="Bantrboks" />
         </a>
         <span>Drop takes. <strong>Win likes.</strong> Climb the board.</span>
       </header>
