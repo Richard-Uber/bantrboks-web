@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { BantrboksAuth } from "./BantrboksAuth";
 import { BantrboksTagline } from "./BantrboksTagline";
 
@@ -21,6 +24,25 @@ const hotspots = [
 ];
 
 export function BantrboksLanding() {
+  const [desktopLoginOpen, setDesktopLoginOpen] = useState(false);
+
+  useEffect(() => {
+    if (!desktopLoginOpen) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setDesktopLoginOpen(false);
+    }
+
+    document.addEventListener("keydown", closeOnEscape);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [desktopLoginOpen]);
+
   return (
     <main className="approved-landing" id="app">
       <section className="approved-artboard" aria-label="Bantrboks landing page">
@@ -47,6 +69,14 @@ export function BantrboksLanding() {
             target={hotspot.external ? "_blank" : undefined}
           />
         ))}
+        <button
+          className="desktop-login-button"
+          type="button"
+          onClick={() => setDesktopLoginOpen(true)}
+          aria-haspopup="dialog"
+        >
+          Log in
+        </button>
       </section>
       <section className="mobile-landing" aria-label="Bantrboks mobile landing page">
         <header className="mobile-header">
@@ -70,16 +100,6 @@ export function BantrboksLanding() {
         <BantrboksAuth />
 
         <section className="mobile-hero">
-          <h1>
-            Drop your hottest Boks/AB takes.
-            <span>Win likes • Support your team</span>
-            <strong>Climb the board</strong>
-          </h1>
-          <div className="mobile-rule" />
-          <p className="mobile-copy">
-            Public bantr drops, rankings, live chat and reaction-led feeds built
-            for fast-moving debate.
-          </p>
           <div className="mobile-actions">
             <a href={appStoreUrl} target="_blank" rel="noreferrer" className="store-button apple">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -117,6 +137,40 @@ export function BantrboksLanding() {
           support@ubermobi.com
         </a>
       </section>
+
+      {desktopLoginOpen ? (
+        <div
+          className="desktop-auth-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setDesktopLoginOpen(false);
+          }}
+        >
+          <section
+            className="desktop-auth-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="desktop-auth-title"
+          >
+            <header>
+              <div>
+                <img src="/bantrboks-logo.png" alt="Bantrboks" />
+                <h2 id="desktop-auth-title">Welcome back</h2>
+                <p>Log in to enter the Bantrboks feed.</p>
+              </div>
+              <button
+                className="desktop-auth-close"
+                type="button"
+                onClick={() => setDesktopLoginOpen(false)}
+                aria-label="Close login"
+              >
+                ×
+              </button>
+            </header>
+            <BantrboksAuth initialMode="signin" />
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

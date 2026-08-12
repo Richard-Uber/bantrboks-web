@@ -18,8 +18,8 @@ function normaliseHandle(value: string) {
     .toLowerCase();
 }
 
-export function BantrboksAuth() {
-  const [mode, setMode] = useState<AuthMode>("create");
+export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMode }) {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [displayName, setDisplayName] = useState("");
   const [handle, setHandle] = useState("");
   const [email, setEmail] = useState("");

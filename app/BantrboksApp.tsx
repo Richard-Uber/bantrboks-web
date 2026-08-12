@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, Dispatch, FormEvent, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, Dispatch, FormEvent, ReactNode, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { BantrboksTagline } from "./BantrboksTagline";
@@ -31,6 +31,18 @@ type Comment = {
   created_at: string;
   profiles?: Profile | null;
 };
+type CommentThreadNode = {
+  comment: Comment;
+  displayBody: string;
+  parentHandle: string | null;
+  replies: CommentThreadNode[];
+};
+type ThreadedComment = {
+  comment: Comment;
+  depth: number;
+  displayBody: string;
+  parentHandle: string | null;
+};
 type Reaction = {
   id: string;
   post_id: string;
@@ -50,6 +62,13 @@ type ChatMessage = {
   handle: string;
   body: string;
   createdAt: string;
+};
+type LinkPreviewData = {
+  url: string;
+  title: string;
+  description: string;
+  image: string;
+  siteName: string;
 };
 
 const roomName = "Springboks vs All Blacks";
@@ -85,6 +104,150 @@ function formatAge(value: string) {
 
 function cleanHandle(profile?: Profile | null) {
   return profile?.handle ? `@${profile.handle}` : "@bantrboks";
+}
+
+function firstPostUrl(body: string) {
+  const match = body.match(/https?:\/\/[^\s<]+/i);
+  return match?.[0]?.replace(/[),.!?;:'\"]+$/, "") ?? "";
+}
+
+function LinkifiedText({ text }: { text: string }) {
+  const output: ReactNode[] = [];
+  const pattern = /https?:\/\/[^\s<]+/gi;
+  let cursor = 0;
+
+  for (const match of text.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    const rawUrl = match[0];
+    const url = rawUrl.replace(/[),.!?;:'\"]+$/, "");
+    const punctuation = rawUrl.slice(url.length);
+
+    if (index > cursor) output.push(text.slice(cursor, index));
+    output.push(
+      <a key={`${index}-${url}`} href={url} target="_blank" rel="noopener noreferrer">
+        {url}
+      </a>
+    );
+    if (punctuation) output.push(punctuation);
+    cursor = index + rawUrl.length;
+  }
+
+  if (cursor < text.length) output.push(text.slice(cursor));
+  return <>{output.length ? output : text}</>;
+}
+
+function LinkPreview({ body }: { body: string }) {
+  const url = useMemo(() => firstPostUrl(body), [body]);
+  const [preview, setPreview] = useState<LinkPreviewData | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!url) {
+      setPreview(null);
+      setLoaded(true);
+      return;
+    }
+
+    const controller = new AbortController();
+    setLoaded(false);
+    fetch(`/api/link-preview?url=${encodeURIComponent(url)}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Preview unavailable");
+        return response.json() as Promise<LinkPreviewData>;
+      })
+      .then((data) => setPreview(data))
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setPreview(null);
+      })
+      .finally(() => setLoaded(true));
+
+    return () => controller.abort();
+  }, [url]);
+
+  if (!url || (!loaded && !preview)) return null;
+
+  let domain = url;
+  try {
+    domain = new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    // Retain the original address for the fallback label.
+  }
+
+  return (
+    <a className="bb-link-preview" href={url} target="_blank" rel="noopener noreferrer">
+      {preview?.image ? <img src={preview.image} alt="" loading="lazy" /> : null}
+      <span>
+        <small>{preview?.siteName || domain}</small>
+        <strong>{preview?.title || `View content on ${domain}`}</strong>
+        {preview?.description ? <em>{preview.description}</em> : null}
+        <b>Open link <span aria-hidden="true">↗</span></b>
+      </span>
+    </a>
+  );
+}
+
+function parseCommentReply(body: string) {
+  const match = body.match(/^\[\[reply:([^\]]+)\]\]\s*/);
+  return {
+    parentId: match?.[1] ?? null,
+    displayBody: match ? body.slice(match[0].length) : body,
+  };
+}
+
+function threadComments(comments: Comment[]): ThreadedComment[] {
+  const ordered = [...comments].sort(
+    (left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+  );
+  const nodes: Array<CommentThreadNode & { parentId: string | null }> = ordered.map((comment) => {
+    const parsed = parseCommentReply(comment.body);
+    return {
+      comment,
+      displayBody: parsed.displayBody,
+      parentHandle: null,
+      replies: [],
+      parentId: parsed.parentId,
+    };
+  });
+  const nodesById = new Map<string, CommentThreadNode>(
+    nodes.map((node): [string, CommentThreadNode] => [node.comment.id, node])
+  );
+  const lastCommentByHandle = new Map<string, CommentThreadNode>();
+  const roots: CommentThreadNode[] = [];
+
+  for (const node of nodes) {
+    let parent: CommentThreadNode | undefined = node.parentId
+      ? nodesById.get(node.parentId)
+      : undefined;
+
+    if (!parent && !node.parentId) {
+      const mentionedHandle = node.displayBody.match(/^@([^\s]+)\s+/)?.[1]?.toLowerCase();
+      if (mentionedHandle) parent = lastCommentByHandle.get(mentionedHandle);
+    }
+
+    if (parent && parent !== node) {
+      node.parentHandle = cleanHandle(parent.comment.profiles);
+      parent.replies.push(node);
+    } else {
+      roots.push(node);
+    }
+
+    const authorHandle = node.comment.profiles?.handle?.toLowerCase();
+    if (authorHandle) lastCommentByHandle.set(authorHandle, node);
+  }
+
+  const flattened: ThreadedComment[] = [];
+  function addNode(node: CommentThreadNode, depth: number) {
+    flattened.push({
+      comment: node.comment,
+      depth,
+      displayBody: node.displayBody,
+      parentHandle: node.parentHandle,
+    });
+    node.replies.forEach((reply) => addNode(reply, depth + 1));
+  }
+
+  roots.slice(-4).forEach((root) => addNode(root, 0));
+  return flattened;
 }
 
 function sharedFileName(source: string, mimeType: string) {
@@ -362,26 +525,27 @@ export function BantrboksApp({ session }: { session: Session }) {
     loadData();
   }
 
-  async function addComment(postId: string) {
+  async function addComment(postId: string, replyToId?: string) {
     const body = commentDrafts[postId]?.trim();
-    if (!body) return;
+    if (!body) return false;
 
     setBusy(`comment-${postId}`);
     const { error } = await supabase.from("comments").insert({
       id: `${Date.now()}-${postId}`,
       post_id: postId,
       author_id: session.user.id,
-      body,
+      body: replyToId ? `[[reply:${replyToId}]]${body}` : body,
     });
     setBusy("");
 
     if (error) {
       setStatus(error.message);
-      return;
+      return false;
     }
 
     setCommentDrafts((current) => ({ ...current, [postId]: "" }));
     loadData();
+    return true;
   }
 
   async function sendChat(event: FormEvent<HTMLFormElement>) {
@@ -559,7 +723,7 @@ export function BantrboksApp({ session }: { session: Session }) {
             <button className="bb-secondary" type="button" onClick={() => avatarInput.current?.click()} disabled={busy === "avatar"}>
               {busy === "avatar" ? "Updating..." : "Change profile picture"}
             </button>
-            {profile?.bio ? <p className="bb-bio">{profile.bio}</p> : <p className="bb-muted">No bio added yet.</p>}
+            {profile?.bio ? <p className="bb-bio">{profile.bio}</p> : null}
             <button className="bb-secondary" type="button" onClick={signOut}>Sign out</button>
           </section>
         ) : null}
@@ -591,20 +755,39 @@ function Feed({
   postStats: Record<string, { slap: number; mic: number; comments: number }>;
   busy: string;
   react: (postId: string, reaction: "slap" | "mic") => void;
-  addComment: (postId: string) => void;
+  addComment: (postId: string, replyToId?: string) => Promise<boolean>;
   commentDrafts: Record<string, string>;
   setCommentDrafts: Dispatch<SetStateAction<Record<string, string>>>;
 }) {
   const [sharingPostId, setSharingPostId] = useState("");
+  const [replyTargets, setReplyTargets] = useState<Record<string, Comment | null>>({});
   const commentInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  function focusComment(postId: string, replyTo?: Profile | null) {
+  function cancelReply(postId: string) {
+    const replyTo = replyTargets[postId];
+    const mention = replyTo ? `${cleanHandle(replyTo.profiles)} ` : "";
+    setReplyTargets((current) => ({ ...current, [postId]: null }));
+    if (mention) {
+      setCommentDrafts((current) => {
+        const draft = current[postId] || "";
+        return {
+          ...current,
+          [postId]: draft.startsWith(mention) ? draft.slice(mention.length) : draft,
+        };
+      });
+    }
+  }
+
+  function focusComment(postId: string, replyTo?: Comment) {
     if (replyTo) {
-      const mention = `${cleanHandle(replyTo)} `;
+      setReplyTargets((current) => ({ ...current, [postId]: replyTo }));
+      const mention = `${cleanHandle(replyTo.profiles)} `;
       setCommentDrafts((current) => ({
         ...current,
         [postId]: current[postId]?.trim() ? current[postId] : mention,
       }));
+    } else {
+      cancelReply(postId);
     }
 
     requestAnimationFrame(() => {
@@ -627,7 +810,9 @@ function Feed({
     <section className="bb-feed">
       {posts.map((post) => {
         const stats = postStats[post.id] || { slap: 0, mic: 0, comments: 0 };
-        const postComments = comments.filter((comment) => comment.post_id === post.id).slice(-4);
+        const postComments = comments.filter((comment) => comment.post_id === post.id);
+        const threadedComments = threadComments(postComments);
+        const replyTarget = replyTargets[post.id];
         return (
           <article className="bb-post" key={post.id}>
             <header>
@@ -638,7 +823,8 @@ function Feed({
               </div>
             </header>
             <span className="bb-tag">{roomHash}</span>
-            <p className="bb-post-body">{post.body}</p>
+            <p className="bb-post-body"><LinkifiedText text={post.body} /></p>
+            <LinkPreview body={post.body} />
             {post.media_url ? <img className="bb-post-media" src={post.media_url} alt="Bantr media" /> : null}
             {post.audio_url ? <audio className="bb-post-audio" src={post.audio_url} controls /> : null}
             <div className="bb-actions">
@@ -661,12 +847,19 @@ function Feed({
               </button>
             </div>
             <div className="bb-comments">
-              {postComments.map((comment) => (
-                <article className="bb-comment" key={comment.id}>
-                  <p><strong>{cleanHandle(comment.profiles)}</strong> {comment.body}</p>
+              {threadedComments.map(({ comment, depth, displayBody, parentHandle }) => (
+                <article
+                  className={`bb-comment${depth ? " is-reply" : ""}`}
+                  key={comment.id}
+                  style={{ marginLeft: Math.min(depth, 3) * 18 }}
+                >
+                  <p>
+                    {parentHandle ? <small>↳ Replying to {parentHandle}</small> : null}
+                    <strong>{cleanHandle(comment.profiles)}</strong> {displayBody}
+                  </p>
                   <button
                     type="button"
-                    onClick={() => focusComment(post.id, comment.profiles)}
+                    onClick={() => focusComment(post.id, comment)}
                     aria-label={`Reply to ${cleanHandle(comment.profiles)}`}
                   >
                     Reply
@@ -676,11 +869,24 @@ function Feed({
             </div>
             <form
               className="bb-comment-form"
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
-                addComment(post.id);
+                const saved = await addComment(post.id, replyTarget?.id);
+                if (saved) setReplyTargets((current) => ({ ...current, [post.id]: null }));
               }}
             >
+              {replyTarget ? (
+                <div className="bb-replying-to">
+                  <span>Replying to {cleanHandle(replyTarget.profiles)}</span>
+                  <button
+                    type="button"
+                    onClick={() => cancelReply(post.id)}
+                    aria-label="Cancel reply"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
               <input
                 ref={(element) => {
                   commentInputs.current[post.id] = element;
