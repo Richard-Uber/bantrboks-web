@@ -8,7 +8,9 @@ type AuthMode = "create" | "signin";
 
 const roomName = "Springboks vs All Blacks";
 const roomSlug = "springboksvsallblacks";
-const legalVersion = "bantrboks-2026-08";
+const legalVersion = "bantrbox-platform-2026-08";
+const signupSource = "bantrboks";
+const acquisitionCampaign = "springboks-all-blacks-tour";
 
 function normaliseHandle(value: string) {
   return value
@@ -69,9 +71,13 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
         bio: existingProfile?.bio ?? "",
         bantr_feed: [roomSlug],
         permission_preferences: {
-          product: "bantrboks",
+          product: "bantrbox",
+          signup_source: signupSource,
+          acquisition_campaign: acquisitionCampaign,
+          created_via: "bantrboks.com",
           default_room: roomSlug,
           current_room: roomSlug,
+          legal_scope: "bantrbox-platform",
         },
         terms_accepted_at: now,
         privacy_accepted_at: now,
@@ -82,6 +88,12 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
 
     if (profileError) {
       setError(`Your account was created, but the profile was not completed: ${profileError.message}`);
+      return false;
+    }
+
+    const { error: membershipError } = await supabase.rpc("ensure_personal_account");
+    if (membershipError && membershipError.code !== "PGRST202") {
+      setError(`Your profile is ready, but master account access was not linked: ${membershipError.message}`);
       return false;
     }
 
@@ -101,7 +113,7 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
       const synced = await syncProfile(data.session.user);
 
       if (isMounted && synced) {
-        setMessage("Your Bantrboks account is ready.");
+        setMessage("Your Bantrbox account is ready in the Bantrboks room.");
 
         if (window.location.hash || window.location.search.includes("verified")) {
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -120,7 +132,7 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
 
       const synced = await syncProfile(session.user);
       if (isMounted && synced) {
-        setMessage("Your Bantrboks account is ready.");
+        setMessage("Your Bantrbox account is ready in the Bantrboks room.");
       }
     });
 
@@ -162,9 +174,14 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
             full_name: displayName.trim(),
             handle: cleanHandle,
             username: cleanHandle,
-            product: "bantrboks",
+            product: "bantrbox",
+            signup_source: signupSource,
+            acquisition_campaign: acquisitionCampaign,
+            created_via: "bantrboks.com",
             room: roomName,
             default_room: roomSlug,
+            initial_room_slug: roomSlug,
+            legal_scope: "bantrbox-platform",
           },
         },
       });
@@ -203,7 +220,7 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
         }
       }
 
-      setMessage("Account created. Your Bantrboks profile is ready.");
+      setMessage("Bantrbox account created. You have joined the Bantrboks room.");
       return;
     }
 
@@ -223,7 +240,7 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
       return;
     }
 
-    setMessage("Signed in. Your Bantrboks profile is ready.");
+    setMessage("Signed in to Bantrbox. Welcome back to the Bantrboks room.");
   }
 
   function switchMode(nextMode: AuthMode) {
@@ -258,7 +275,7 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
   }
 
   return (
-    <form className="mobile-login" aria-label="Bantrboks account access" onSubmit={submit}>
+    <form className="mobile-login" aria-label="Bantrbox account access through Bantrboks" onSubmit={submit}>
       <div className="mobile-auth-tabs" aria-label="Account mode">
         <button
           className={mode === "create" ? "is-active" : undefined}
@@ -280,6 +297,9 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
 
       {mode === "create" ? (
         <>
+          <p className="mobile-auth-context">
+            Create your permanent Bantrbox account and join the Bantrboks Springboks vs All Blacks room.
+          </p>
           <input
             type="text"
             placeholder="Display name"
@@ -320,7 +340,7 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
       {message ? <p className="mobile-login-status">{message}</p> : null}
 
       <button className="mobile-auth-primary" type="submit" disabled={busy}>
-        {busy ? (mode === "create" ? "Creating..." : "Signing in...") : mode === "create" ? "Create Account" : "Sign in"}
+        {busy ? (mode === "create" ? "Creating..." : "Signing in...") : mode === "create" ? "Create Bantrbox Account" : "Sign in"}
       </button>
       <button
         className="mobile-auth-secondary"
