@@ -1,5 +1,20 @@
 const previewTimeoutMs = 6000;
 const previewBodyLimit = 384 * 1024;
+const supportedPreviewHosts = [
+  "bantrbox.com",
+  "bantrboks.com",
+  "facebook.com",
+  "fb.watch",
+  "instagram.com",
+  "linkedin.com",
+  "reddit.com",
+  "threads.net",
+  "tiktok.com",
+  "twitter.com",
+  "x.com",
+  "youtu.be",
+  "youtube.com",
+];
 
 function isPrivateHostname(hostname: string) {
   const value = hostname.toLowerCase().replace(/^\[|\]$/g, "");
@@ -21,10 +36,19 @@ function isPrivateHostname(hostname: string) {
   );
 }
 
-function safeWebUrl(value: string, base?: string) {
+function isSupportedPreviewHostname(hostname: string) {
+  const value = hostname.toLowerCase().replace(/^www\./, "");
+  return supportedPreviewHosts.some((host) => value === host || value.endsWith(`.${host}`));
+}
+
+function safeWebUrl(value: string, base?: string, requireSupportedHost = true) {
   try {
     const url = new URL(value, base);
-    if (!['http:', 'https:'].includes(url.protocol) || isPrivateHostname(url.hostname)) return null;
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      isPrivateHostname(url.hostname) ||
+      (requireSupportedHost && !isSupportedPreviewHostname(url.hostname))
+    ) return null;
     url.username = "";
     url.password = "";
     return url;
@@ -124,7 +148,7 @@ export async function GET(request: Request) {
     const html = await readLimitedHtml(response);
     const { values, title } = metadata(html);
     const rawImage = values.get("og:image") || values.get("twitter:image") || "";
-    const image = rawImage ? safeWebUrl(rawImage, current.href)?.href || "" : "";
+    const image = rawImage ? safeWebUrl(rawImage, current.href, false)?.href || "" : "";
     const payload = {
       url: current.href,
       title: values.get("og:title") || values.get("twitter:title") || title || current.hostname,
