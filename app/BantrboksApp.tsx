@@ -727,7 +727,7 @@ export function BantrboksApp({ session }: { session: Session }) {
       <BantrboksTagline />
 
       <section className="bb-room-hero">
-        <img src="/brand/bantrboks-room-boks-abs.webp" alt="BOKS vs ABS Bantrboks room" />
+        <img src="/brand/bantrboks-room-rivalry-v2.webp" alt="BOKS vs ABS Bantrboks room" />
       </section>
 
       <section className="bb-viewbar" ref={viewbar}>

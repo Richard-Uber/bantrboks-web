@@ -1977,9 +1977,10 @@ a {
 
 .bb-room-hero img {
   display: block;
-  width: min(560px, 90vw);
-  max-height: 230px;
-  object-fit: cover;
+  width: min(760px, 92vw);
+  height: auto;
+  max-height: none;
+  object-fit: contain;
   border: 0;
   border-radius: 0;
   box-shadow: 0 0 28px rgba(53, 213, 213, 0.22);
@@ -2060,8 +2061,7 @@ a {
   }
 
   .bb-room-hero img {
-    width: min(360px, 78vw);
-    max-height: 150px;
+    width: min(420px, 92vw);
   }
 
   .bb-create-tools {
