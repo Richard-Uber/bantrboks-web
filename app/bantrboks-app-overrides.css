@@ -3,7 +3,20 @@
 .bb-app .bb-app-top,
 .bb-app .bb-content,
 .bb-app .bb-feed,
-.bb-app .bb-create {
+.bb-app .bb-card,
+.bb-app .bb-post,
+.bb-app .bb-create,
+.bb-app .bb-ladder-row,
+.bb-app .bb-notification,
+.bb-app .bb-chat-window,
+.bb-app .bb-comment,
+.bb-app .bb-bottom-nav,
+.bb-app .bb-comment-form input,
+.bb-app .bb-chat-form input,
+.bb-app .bb-create textarea,
+.bb-app .bb-create-preview,
+.bb-app .bb-create-preview img,
+.bb-app .bb-create-preview video {
   background: #000;
   background-image: none;
 }
@@ -11,4 +24,15 @@
 .bb-app .bb-app-logo {
   background: transparent;
   box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .mobile-landing,
+  .mobile-login,
+  .mobile-login input,
+  .store-button,
+  .mobile-policy-links a {
+    background: #000;
+    background-image: none;
+  }
 }

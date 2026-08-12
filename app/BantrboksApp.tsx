@@ -3,6 +3,7 @@
 import { ChangeEvent, Dispatch, FormEvent, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { BantrboksTagline } from "./BantrboksTagline";
 
 type View = "home" | "ranking" | "create" | "notifications" | "chat" | "profile";
 type Profile = {
@@ -86,6 +87,64 @@ function cleanHandle(profile?: Profile | null) {
   return profile?.handle ? `@${profile.handle}` : "@bantrboks";
 }
 
+function sharedFileName(source: string, mimeType: string) {
+  const fallbackExtension: Record<string, string> = {
+    "audio/mpeg": "mp3",
+    "audio/mp4": "m4a",
+    "image/gif": "gif",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "video/mp4": "mp4",
+    "video/quicktime": "mov",
+    "video/webm": "webm",
+  };
+
+  try {
+    const candidate = decodeURIComponent(new URL(source).pathname.split("/").pop() || "");
+    if (candidate.includes(".")) return candidate;
+  } catch {
+    // Use a stable filename when the stored media URL cannot be parsed.
+  }
+
+  return `bantrboks-post.${fallbackExtension[mimeType] || "bin"}`;
+}
+
+async function sharePost(post: Post) {
+  if (!navigator.share) return;
+
+  const mediaSource = post.media_url || post.audio_url;
+  const postText = post.body.trim();
+  const text = [postText, roomHash].filter(Boolean).join("\n\n");
+  let file: File | null = null;
+
+  if (mediaSource) {
+    try {
+      const response = await fetch(mediaSource);
+      if (!response.ok) throw new Error("Media download failed.");
+      const blob = await response.blob();
+      const mimeType = blob.type || response.headers.get("content-type") || "application/octet-stream";
+      file = new File([blob], sharedFileName(mediaSource, mimeType), { type: mimeType });
+    } catch {
+      // The direct media address below is the fallback if attachment sharing is unavailable.
+    }
+  }
+
+  const attachedShare: ShareData = {
+    title: "Bantrboks",
+    text,
+    ...(file ? { files: [file] } : {}),
+  };
+  const canAttach = file && (!navigator.canShare || navigator.canShare(attachedShare));
+  const fallbackText = [text, mediaSource].filter(Boolean).join("\n\n");
+
+  try {
+    await navigator.share(canAttach ? attachedShare : { title: "Bantrboks", text: fallbackText });
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
+  }
+}
+
 export function BantrboksApp({ session }: { session: Session }) {
   const [view, setView] = useState<View>("home");
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -99,6 +158,7 @@ export function BantrboksApp({ session }: { session: Session }) {
   const [status, setStatus] = useState("");
   const [chatDraft, setChatDraft] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [createMediaFile, setCreateMediaFile] = useState<File | null>(null);
   const [createMediaPreview, setCreateMediaPreview] = useState("");
   const chatChannel = useRef<RealtimeChannel | null>(null);
@@ -106,6 +166,7 @@ export function BantrboksApp({ session }: { session: Session }) {
   const galleryInput = useRef<HTMLInputElement | null>(null);
   const cameraInput = useRef<HTMLInputElement | null>(null);
   const avatarInput = useRef<HTMLInputElement | null>(null);
+  const viewbar = useRef<HTMLElement | null>(null);
 
   const loadData = useCallback(async () => {
     const [profileRes, postsRes, commentsRes, reactionsRes, notificationsRes] =
@@ -350,7 +411,14 @@ export function BantrboksApp({ session }: { session: Session }) {
 
   function navButton(nextView: View, label: string, icon: string) {
     return (
-      <button className={view === nextView ? "is-active" : undefined} onClick={() => setView(nextView)} type="button">
+      <button
+        className={view === nextView ? "is-active" : undefined}
+        onClick={() => {
+          setView(nextView);
+          requestAnimationFrame(() => viewbar.current?.scrollIntoView({ block: "start" }));
+        }}
+        type="button"
+      >
         <span aria-hidden="true">{icon}</span>
         {label}
       </button>
@@ -358,7 +426,7 @@ export function BantrboksApp({ session }: { session: Session }) {
   }
 
   return (
-    <main className="bb-app">
+    <main className={`bb-app${isComposerFocused ? " is-composing" : ""}`}>
       <header className="bb-app-top">
         <img className="bb-app-logo" src="/bantrboks-logo.png" alt="Bantrboks" />
         <button className="bb-profile-dot" type="button" onClick={() => setView("profile")}>
@@ -366,11 +434,13 @@ export function BantrboksApp({ session }: { session: Session }) {
         </button>
       </header>
 
+      <BantrboksTagline />
+
       <section className="bb-room-hero">
         <img src="/brand/bantrboks-room-boks-abs.png" alt="BOKS vs ABS Bantrboks room" />
       </section>
 
-      <section className="bb-viewbar">
+      <section className="bb-viewbar" ref={viewbar}>
         <h1>{view === "home" ? "Bantr" : view === "ranking" ? "Ladder" : view === "create" ? "Create" : view === "notifications" ? "Notifs" : view === "chat" ? "Live Chat" : "Profile"}</h1>
       </section>
 
@@ -408,6 +478,8 @@ export function BantrboksApp({ session }: { session: Session }) {
               value={newPost}
               maxLength={280}
               onChange={(event) => setNewPost(event.target.value)}
+              onFocus={() => setIsComposerFocused(true)}
+              onBlur={() => setIsComposerFocused(false)}
               placeholder="What do you want to bantr about?"
             />
             <div className="bb-create-meta">
@@ -523,6 +595,25 @@ function Feed({
   commentDrafts: Record<string, string>;
   setCommentDrafts: Dispatch<SetStateAction<Record<string, string>>>;
 }) {
+  const [sharingPostId, setSharingPostId] = useState("");
+  const commentInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  function focusComment(postId: string, replyTo?: Profile | null) {
+    if (replyTo) {
+      const mention = `${cleanHandle(replyTo)} `;
+      setCommentDrafts((current) => ({
+        ...current,
+        [postId]: current[postId]?.trim() ? current[postId] : mention,
+      }));
+    }
+
+    requestAnimationFrame(() => {
+      const input = commentInputs.current[postId];
+      input?.focus();
+      input?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
   if (!posts.length) {
     return (
       <section className="bb-card">
@@ -553,12 +644,34 @@ function Feed({
             <div className="bb-actions">
               <button type="button" onClick={() => react(post.id, "slap")} disabled={busy === `${post.id}-slap`}>👋 Slap <b>{stats.slap}</b></button>
               <button type="button" onClick={() => react(post.id, "mic")} disabled={busy === `${post.id}-mic`}>🔥 F Drop <b>{stats.mic}</b></button>
-              <button type="button">💬 Reply <b>{stats.comments}</b></button>
-              <button type="button" onClick={() => navigator.share?.({ title: "Bantrboks", text: post.body, url: window.location.href })}>Share</button>
+              <button type="button" onClick={() => focusComment(post.id)}>💬 Reply <b>{stats.comments}</b></button>
+              <button
+                type="button"
+                disabled={sharingPostId === post.id}
+                onClick={async () => {
+                  setSharingPostId(post.id);
+                  try {
+                    await sharePost(post);
+                  } finally {
+                    setSharingPostId("");
+                  }
+                }}
+              >
+                {sharingPostId === post.id ? "Preparing…" : "Share"}
+              </button>
             </div>
             <div className="bb-comments">
               {postComments.map((comment) => (
-                <p key={comment.id}><strong>{cleanHandle(comment.profiles)}</strong> {comment.body}</p>
+                <article className="bb-comment" key={comment.id}>
+                  <p><strong>{cleanHandle(comment.profiles)}</strong> {comment.body}</p>
+                  <button
+                    type="button"
+                    onClick={() => focusComment(post.id, comment.profiles)}
+                    aria-label={`Reply to ${cleanHandle(comment.profiles)}`}
+                  >
+                    Reply
+                  </button>
+                </article>
               ))}
             </div>
             <form
@@ -569,6 +682,9 @@ function Feed({
               }}
             >
               <input
+                ref={(element) => {
+                  commentInputs.current[post.id] = element;
+                }}
                 value={commentDrafts[post.id] || ""}
                 onChange={(event) => setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))}
                 placeholder="Say something..."

@@ -1,4 +1,5 @@
 import { BantrboksAuth } from "./BantrboksAuth";
+import { BantrboksTagline } from "./BantrboksTagline";
 
 const appStoreUrl = "https://apps.apple.com/app/bantrbox/id6791587145";
 const playStoreUrl = "https://play.google.com/store/apps/details?id=com.bantrbox.app";
@@ -29,7 +30,7 @@ export function BantrboksLanding() {
           draggable={false}
         />
         <a className="approved-division" href="https://bantrbox.com" target="_blank" rel="noreferrer">
-          A division of bantrbox.com
+          By Bantrbox.com
         </a>
         <h1 className="sr-only">Bantrboks</h1>
         <p className="sr-only">
@@ -51,9 +52,11 @@ export function BantrboksLanding() {
         <header className="mobile-header">
           <img className="mobile-logo" src="/bantrboks-logo.png" alt="Bantrboks" draggable={false} />
           <a className="mobile-division" href="https://bantrbox.com" target="_blank" rel="noreferrer">
-            A division of bantrbox.com
+            By bantrbox.com
           </a>
         </header>
+
+        <BantrboksTagline />
 
         <section className="mobile-room-entry" aria-label="Bantrboks room">
           <img
