@@ -1223,8 +1223,8 @@ a {
 
 .approved-artboard {
   position: relative;
-  width: min(100vw, calc(100vh * 1.5));
-  aspect-ratio: 1536 / 1024;
+  width: min(100vw, calc(100svh * 1.7779));
+  aspect-ratio: 1672 / 941;
   overflow: hidden;
   background: #000;
 }
@@ -1249,6 +1249,29 @@ a {
     0 0 0 3px rgba(0, 0, 0, 0.85),
     0 0 0 6px #35d5d5;
 }
+
+.campaign-nav-rooms { left: 65.2%; top: 1.2%; width: 5.7%; height: 5.3%; }
+.campaign-nav-rankings { left: 71.6%; top: 1.2%; width: 6.2%; height: 5.3%; }
+.campaign-nav-about { left: 78.3%; top: 1.2%; width: 5%; height: 5.3%; }
+.campaign-nav-download { left: 83.6%; top: 1.2%; width: 6.8%; height: 5.3%; }
+.campaign-nav-login { left: 90.5%; top: 1.2%; width: 6.2%; height: 5.3%; }
+.campaign-enter-room { left: 8.8%; top: 55%; width: 13.5%; height: 8.7%; }
+.campaign-get-app { left: 33.5%; top: 55%; width: 11.5%; height: 8.7%; }
+.campaign-back-boks { left: 37.8%; top: 83%; width: 13%; height: 6.5%; }
+.campaign-back-abs { left: 51.5%; top: 83%; width: 13%; height: 6.5%; }
+.campaign-footer-privacy { left: 61.7%; top: 95%; width: 7%; height: 3.4%; }
+.campaign-footer-terms { left: 69.4%; top: 95%; width: 8.4%; height: 3.4%; }
+.campaign-footer-community { left: 78.4%; top: 95%; width: 10.5%; height: 3.4%; }
+.campaign-footer-safety { left: 89.4%; top: 95%; width: 7.8%; height: 3.4%; }
+
+.campaign-anchor {
+  position: absolute;
+  pointer-events: none;
+}
+
+.campaign-anchor-ladder { left: 24%; top: 74%; }
+.campaign-anchor-about { left: 8%; top: 45%; }
+.campaign-anchor-account { left: 45%; top: 55%; }
 
 .hotspot-app {
   left: 45.8%;
@@ -1294,30 +1317,22 @@ a {
 
 .desktop-login-button {
   position: absolute;
-  top: 23%;
-  left: 51.2%;
+  left: 23.7%;
+  top: 55%;
   z-index: 6;
-  min-width: 10.5%;
-  min-height: 6.2%;
-  transform: translate(-50%, -50%);
-  border: 2px solid #ffd600;
-  border-radius: 999px;
-  padding: 0 1.8%;
-  color: #050505;
-  background: #ffd600;
-  box-shadow: 0 0 18px rgba(255, 214, 0, 0.2);
-  font: inherit;
-  font-size: clamp(13px, 1.05vw, 18px);
-  font-weight: 950;
-  white-space: nowrap;
+  width: 8.9%;
+  height: 8.7%;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  color: transparent;
+  background: transparent;
   cursor: pointer;
 }
 
 .desktop-login-button:hover,
 .desktop-login-button:focus-visible {
-  background: #f8f6ec;
-  transform: translate(-50%, -50%) scale(1.03);
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.85), 0 0 0 6px #35d5d5;
+  box-shadow: 0 0 0 3px #35d5d5;
   outline: none;
 }
 
@@ -1361,6 +1376,7 @@ a {
   max-width: 70%;
   height: auto;
   margin-bottom: 14px;
+  mix-blend-mode: screen;
 }
 
 .desktop-auth-modal h2 {
@@ -1595,61 +1611,6 @@ a {
   height: 3.8%;
 }
 
-.desktop-support-email {
-  position: absolute;
-  left: 50%;
-  top: 95.15%;
-  z-index: 6;
-  display: inline-flex;
-  align-items: center;
-  gap: clamp(8px, 0.75vw, 13px);
-  transform: translate(-50%, -50%);
-  color: #f8f6ec;
-  font-size: clamp(12px, 1.05vw, 18px);
-  font-weight: 750;
-  line-height: 1;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.desktop-support-email > span {
-  position: relative;
-  display: block;
-  width: clamp(18px, 1.55vw, 27px);
-  aspect-ratio: 4 / 3;
-  border: max(1.5px, 0.12vw) solid #ffd600;
-  border-radius: 2px;
-  box-shadow: 0 0 10px rgba(255, 214, 0, 0.16);
-}
-
-.desktop-support-email > span::before,
-.desktop-support-email > span::after {
-  position: absolute;
-  top: 18%;
-  width: 57%;
-  height: max(1.5px, 0.12vw);
-  content: "";
-  background: #ffd600;
-}
-
-.desktop-support-email > span::before {
-  left: 3%;
-  transform: rotate(33deg);
-  transform-origin: left center;
-}
-
-.desktop-support-email > span::after {
-  right: 3%;
-  transform: rotate(-33deg);
-  transform-origin: right center;
-}
-
-.desktop-support-email:hover,
-.desktop-support-email:focus-visible {
-  color: #35d5d5;
-  outline: none;
-}
-
 .mobile-landing {
   display: none;
 }
@@ -1667,10 +1628,6 @@ a {
 
   .desktop-login-button,
   .desktop-auth-backdrop,
-  .desktop-support-email {
-    display: none;
-  }
-
   .mobile-landing {
     display: block;
     min-height: 100svh;
@@ -2008,8 +1965,8 @@ a {
   width: min(560px, 90vw);
   max-height: 230px;
   object-fit: cover;
-  border: 4px solid var(--bb-yellow);
-  border-radius: 26px;
+  border: 0;
+  border-radius: 0;
   box-shadow: 0 0 28px rgba(53, 213, 213, 0.22);
 }
 
@@ -2090,7 +2047,6 @@ a {
   .bb-room-hero img {
     width: min(360px, 78vw);
     max-height: 150px;
-    border-radius: 18px;
   }
 
   .bb-create-tools {

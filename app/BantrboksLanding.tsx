@@ -7,20 +7,20 @@ import { BantrboksTagline } from "./BantrboksTagline";
 const appStoreUrl = "https://apps.apple.com/app/bantrbox/id6791587145";
 const playStoreUrl = "https://play.google.com/store/apps/details?id=com.bantrbox.app";
 
-const hotspots = [
-  { label: "App", href: "#app", className: "hotspot-app" },
-  { label: "Privacy", href: "https://bantrbox.com/privacy", className: "hotspot-nav-privacy", external: true },
-  { label: "Terms", href: "https://bantrbox.com/terms", className: "hotspot-nav-terms", external: true },
-  { label: "Community Guidelines", href: "https://bantrbox.com/community-guidelines", className: "hotspot-nav-community", external: true },
-  { label: "Safety Standards", href: "https://bantrbox.com/safety-standards", className: "hotspot-nav-safety", external: true },
-  { label: "Support", href: "https://bantrbox.com/support", className: "hotspot-nav-support", external: true },
-  { label: "Download on the App Store", href: appStoreUrl, className: "hotspot-app-store", external: true },
-  { label: "Get it on Google Play", href: playStoreUrl, className: "hotspot-play-store", external: true },
-  { label: "Privacy Policy", href: "https://bantrbox.com/privacy", className: "hotspot-card-privacy", external: true },
-  { label: "Terms and Conditions", href: "https://bantrbox.com/terms", className: "hotspot-card-terms", external: true },
-  { label: "Community Guidelines", href: "https://bantrbox.com/community-guidelines", className: "hotspot-card-community", external: true },
-  { label: "Safety Standards", href: "https://bantrbox.com/safety-standards", className: "hotspot-card-safety", external: true },
-  { label: "Email support", href: "mailto:support@ubermobi.com", className: "hotspot-email" },
+const campaignHotspots = [
+  { label: "Rooms", href: "#room", className: "campaign-nav-rooms" },
+  { label: "Rankings", href: "#ladder", className: "campaign-nav-rankings" },
+  { label: "About Bantrboks", href: "#about", className: "campaign-nav-about" },
+  { label: "Download Bantrbox", href: appStoreUrl, className: "campaign-nav-download", external: true },
+  { label: "Log in", href: "#account", className: "campaign-nav-login" },
+  { label: "Enter the Boks vs ABs room", href: "#account", className: "campaign-enter-room" },
+  { label: "Get the Bantrbox app", href: appStoreUrl, className: "campaign-get-app", external: true },
+  { label: "Back the Boks", href: "#account", className: "campaign-back-boks" },
+  { label: "Back the ABs", href: "#account", className: "campaign-back-abs" },
+  { label: "Privacy Policy", href: "https://bantrbox.com/privacy", className: "campaign-footer-privacy", external: true },
+  { label: "Terms and Conditions", href: "https://bantrbox.com/terms", className: "campaign-footer-terms", external: true },
+  { label: "Community Guidelines", href: "https://bantrbox.com/community-guidelines", className: "campaign-footer-community", external: true },
+  { label: "Safety Standards", href: "https://bantrbox.com/safety-standards", className: "campaign-footer-safety", external: true },
 ];
 
 export function BantrboksLanding() {
@@ -45,30 +45,26 @@ export function BantrboksLanding() {
 
   return (
     <main className="approved-landing" id="app">
-      <section className="approved-artboard" aria-label="Bantrboks landing page">
+      <section className="approved-artboard" id="room" aria-label="Bantrboks Boks vs ABs landing page">
         <img
-          src="/brand/bantrboks-approved-website-landing.webp"
-          alt="Bantrboks landing page: Drop takes. Win likes. Climb the board."
+          src="/brand/bantrboks-rivalry-landing-v1.webp"
+          alt="Bantrboks Boks vs ABs campaign: Drop your take. Back your side. Climb the board."
           draggable={false}
         />
-        <a className="approved-division" href="https://bantrbox.com" target="_blank" rel="noreferrer">
-          By Bantrbox.com
-        </a>
-        <a className="desktop-support-email" href="mailto:support@ubermobi.com">
-          <span aria-hidden="true" />
-          support@ubermobi.com
-        </a>
         <h1 className="sr-only">Bantrboks</h1>
         <p className="sr-only">
-          Public bantr drops, rankings, live chat and reaction-led feeds built for
-          fast-moving debate.
+          Boks versus ABs. Drop your take, back your side and climb the board.
         </p>
-        {hotspots.filter((hotspot) => hotspot.className !== "hotspot-email").map((hotspot) => (
+        {campaignHotspots.map((hotspot) => (
           <a
             key={`${hotspot.className}-${hotspot.href}`}
             aria-label={hotspot.label}
             className={`approved-hotspot ${hotspot.className}`}
             href={hotspot.href}
+            onClick={hotspot.href === "#account" ? (event) => {
+              event.preventDefault();
+              setDesktopLoginOpen(true);
+            } : undefined}
             rel={hotspot.external ? "noreferrer" : undefined}
             target={hotspot.external ? "_blank" : undefined}
           />
@@ -81,6 +77,9 @@ export function BantrboksLanding() {
         >
           Log in
         </button>
+        <span id="ladder" className="campaign-anchor campaign-anchor-ladder" aria-hidden="true" />
+        <span id="about" className="campaign-anchor campaign-anchor-about" aria-hidden="true" />
+        <span id="account" className="campaign-anchor campaign-anchor-account" aria-hidden="true" />
       </section>
       <section className="mobile-landing" aria-label="Bantrboks mobile landing page">
         <header className="mobile-header">
