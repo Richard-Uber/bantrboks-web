@@ -250,59 +250,19 @@ function threadComments(comments: Comment[]): ThreadedComment[] {
   return flattened;
 }
 
-function sharedFileName(source: string, mimeType: string) {
-  const fallbackExtension: Record<string, string> = {
-    "audio/mpeg": "mp3",
-    "audio/mp4": "m4a",
-    "image/gif": "gif",
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-    "video/mp4": "mp4",
-    "video/quicktime": "mov",
-    "video/webm": "webm",
-  };
-
-  try {
-    const candidate = decodeURIComponent(new URL(source).pathname.split("/").pop() || "");
-    if (candidate.includes(".")) return candidate;
-  } catch {
-    // Use a stable filename when the stored media URL cannot be parsed.
-  }
-
-  return `bantrboks-post.${fallbackExtension[mimeType] || "bin"}`;
-}
-
 async function sharePost(post: Post) {
   if (!navigator.share) return;
 
-  const mediaSource = post.media_url || post.audio_url;
   const postText = post.body.trim();
+  const postUrl = new URL(`/post/${encodeURIComponent(post.id)}`, window.location.origin).href;
   const text = [postText, roomHash].filter(Boolean).join("\n\n");
-  let file: File | null = null;
-
-  if (mediaSource) {
-    try {
-      const response = await fetch(mediaSource);
-      if (!response.ok) throw new Error("Media download failed.");
-      const blob = await response.blob();
-      const mimeType = blob.type || response.headers.get("content-type") || "application/octet-stream";
-      file = new File([blob], sharedFileName(mediaSource, mimeType), { type: mimeType });
-    } catch {
-      // The direct media address below is the fallback if attachment sharing is unavailable.
-    }
-  }
-
-  const attachedShare: ShareData = {
-    title: "Bantrboks",
-    text,
-    ...(file ? { files: [file] } : {}),
-  };
-  const canAttach = file && (!navigator.canShare || navigator.canShare(attachedShare));
-  const fallbackText = [text, mediaSource].filter(Boolean).join("\n\n");
 
   try {
-    await navigator.share(canAttach ? attachedShare : { title: "Bantrboks", text: fallbackText });
+    await navigator.share({
+      title: `${cleanHandle(post.profiles)} on Bantrboks`,
+      text,
+      url: postUrl,
+    });
   } catch (error) {
     if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
   }

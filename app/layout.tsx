@@ -14,6 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://bantrboks.com"),
   title: "Bantrboks | Drop takes. Win likes. Climb the board.",
   description:
     "Bantrboks is the Springboks vs All Blacks bantr room. Drop takes, win likes, and climb the board.",

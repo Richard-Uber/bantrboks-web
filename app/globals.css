@@ -872,6 +872,185 @@ a {
   color: inherit;
 }
 
+.shared-post-page {
+  min-height: 100svh;
+  padding: 32px 20px 56px;
+  color: #f8f6ec;
+  background:
+    radial-gradient(circle at 84% 12%, rgba(53, 213, 213, 0.14), transparent 26%),
+    radial-gradient(circle at 12% 38%, rgba(255, 214, 0, 0.1), transparent 30%),
+    #000;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+
+.shared-post-page > header,
+.shared-post-card,
+.shared-post-cta {
+  width: min(720px, 100%);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.shared-post-page > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 26px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 214, 0, 0.75);
+}
+
+.shared-post-page > header img {
+  display: block;
+  width: min(250px, 48vw);
+  height: auto;
+}
+
+.shared-post-page > header span {
+  font-size: 14px;
+  font-weight: 900;
+  text-align: right;
+}
+
+.shared-post-page > header strong {
+  color: #ffd600;
+}
+
+.shared-post-card {
+  overflow: hidden;
+  border: 3px solid #ffd600;
+  border-radius: 24px;
+  padding: 24px;
+  background: #050505;
+  box-shadow: 0 0 34px rgba(53, 213, 213, 0.12);
+}
+
+.shared-post-author {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.shared-post-author > span {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 3px solid #ffd600;
+  border-radius: 50%;
+  color: #ffd600;
+  background: #000;
+  font-weight: 950;
+}
+
+.shared-post-author strong,
+.shared-post-author small {
+  display: block;
+}
+
+.shared-post-author strong {
+  font-size: 24px;
+}
+
+.shared-post-author small {
+  color: rgba(248, 246, 236, 0.68);
+  font-weight: 800;
+}
+
+.shared-post-tag {
+  display: inline-block;
+  margin-bottom: 18px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  color: #050505;
+  background: #ffd600;
+  overflow-wrap: anywhere;
+}
+
+.shared-post-card > p {
+  margin: 0 0 20px;
+  font-size: clamp(22px, 4vw, 30px);
+  line-height: 1.2;
+  font-weight: 900;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.shared-post-media {
+  display: block;
+  width: 100%;
+  max-height: 680px;
+  object-fit: contain;
+  border: 1px solid rgba(248, 246, 236, 0.2);
+  border-radius: 16px;
+  background: #000;
+}
+
+.shared-post-card audio {
+  width: 100%;
+}
+
+.shared-post-missing h1 {
+  margin-top: 0;
+  color: #ffd600;
+}
+
+.shared-post-cta {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.shared-post-cta h1 {
+  margin: 0;
+  color: #ffd600;
+  font-size: 34px;
+}
+
+.shared-post-cta p {
+  margin: 8px 0 18px;
+  font-weight: 800;
+}
+
+.shared-post-cta a {
+  display: inline-grid;
+  min-height: 52px;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 28px;
+  color: #050505;
+  background: #ffd600;
+  font-size: 18px;
+  font-weight: 950;
+  text-decoration: none;
+}
+
+@media (max-width: 560px) {
+  .shared-post-page {
+    padding: 22px 14px 42px;
+  }
+
+  .shared-post-page > header {
+    align-items: flex-end;
+  }
+
+  .shared-post-page > header span {
+    max-width: 150px;
+    font-size: 11px;
+  }
+
+  .shared-post-card {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .shared-post-author strong {
+    font-size: 20px;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -965,19 +1144,20 @@ a {
 
 .desktop-login-button {
   position: absolute;
-  top: 2.65%;
-  right: 1.25%;
+  top: 23%;
+  left: 51.2%;
   z-index: 6;
-  min-width: 5.2%;
-  min-height: 5.7%;
+  min-width: 10.5%;
+  min-height: 6.2%;
+  transform: translate(-50%, -50%);
   border: 2px solid #ffd600;
   border-radius: 999px;
-  padding: 0 1.15%;
+  padding: 0 1.8%;
   color: #050505;
   background: #ffd600;
   box-shadow: 0 0 18px rgba(255, 214, 0, 0.2);
   font: inherit;
-  font-size: clamp(11px, 0.88vw, 15px);
+  font-size: clamp(13px, 1.05vw, 18px);
   font-weight: 950;
   white-space: nowrap;
   cursor: pointer;
@@ -986,6 +1166,7 @@ a {
 .desktop-login-button:hover,
 .desktop-login-button:focus-visible {
   background: #f8f6ec;
+  transform: translate(-50%, -50%) scale(1.03);
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.85), 0 0 0 6px #35d5d5;
   outline: none;
 }
