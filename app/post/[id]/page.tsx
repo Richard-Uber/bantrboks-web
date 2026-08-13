@@ -106,6 +106,9 @@ export default async function SharedPostPage({
 }) {
   const { id } = await params;
   const post = await getSharedPost(id);
+  const linkedUrl = firstPostUrl(post?.body ?? "");
+  const visibleBody = postDescription(post);
+  const linkedImage = !post?.media_url && linkedUrl ? await linkedPreviewImage(post) : "";
 
   return (
     <main className="shared-post-page">
@@ -126,8 +129,19 @@ export default async function SharedPostPage({
             </div>
           </div>
           <b className="shared-post-tag">#springboksvsallblacks</b>
-          <p>{post.body}</p>
-          {post.media_url ? <img className="shared-post-media" src={post.media_url} alt="Shared Bantrboks post" /> : null}
+          <p>{visibleBody}</p>
+          {post.media_url ? (
+            linkedUrl ? (
+              <a className="shared-post-source" href={linkedUrl} target="_blank" rel="noopener noreferrer" aria-label="Open the original content">
+                <img className="shared-post-media" src={post.media_url} alt="Shared Bantrboks post" />
+              </a>
+            ) : <img className="shared-post-media" src={post.media_url} alt="Shared Bantrboks post" />
+          ) : null}
+          {linkedUrl && linkedImage ? (
+            <a className="shared-post-source" href={linkedUrl} target="_blank" rel="noopener noreferrer" aria-label="Open the original content">
+              <img className="shared-post-media" src={linkedImage} alt="Original content preview" />
+            </a>
+          ) : null}
           {post.audio_url ? <audio src={post.audio_url} controls /> : null}
         </article>
       ) : (

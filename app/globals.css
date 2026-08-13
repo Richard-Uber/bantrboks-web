@@ -535,19 +535,6 @@
   font-size: 14px;
 }
 
-.bb-post-url {
-  display: block;
-  margin: 0 0 18px;
-  color: var(--bb-cyan);
-  font-size: 15px;
-  line-height: 1.35;
-  font-weight: 800;
-  overflow-wrap: anywhere;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-}
-
 .bb-social-embed {
   display: block;
   width: 100%;
@@ -1261,6 +1248,17 @@ a {
   border: 1px solid rgba(248, 246, 236, 0.2);
   border-radius: 16px;
   background: #000;
+}
+
+.shared-post-source {
+  display: block;
+  border-radius: 16px;
+  text-decoration: none;
+}
+
+.shared-post-source:focus-visible {
+  outline: 3px solid #35d5d5;
+  outline-offset: 4px;
 }
 
 .shared-post-card audio {

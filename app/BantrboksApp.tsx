@@ -133,17 +133,6 @@ function postTextWithoutUrls(body: string) {
     .trim();
 }
 
-function PostUrl({ body }: { body: string }) {
-  const url = firstPostUrl(body);
-  if (!url) return null;
-
-  return (
-    <a className="bb-post-url" href={url} target="_blank" rel="noopener noreferrer">
-      {url}
-    </a>
-  );
-}
-
 function LinkifiedText({ text }: { text: string }) {
   const output: ReactNode[] = [];
   const pattern = /https?:\/\/[^\s<]+/gi;
@@ -1155,7 +1144,6 @@ function Feed({
             <span className="bb-tag">{roomHash}</span>
             {postText ? <p className="bb-post-body"><LinkifiedText text={postText} /></p> : null}
             <LinkPreview body={post.body} />
-            <PostUrl body={post.body} />
             {post.media_url ? <img className="bb-post-media" src={post.media_url} alt="Bantr media" /> : null}
             {post.audio_url ? <audio className="bb-post-audio" src={post.audio_url} controls /> : null}
             <div className="bb-actions">
