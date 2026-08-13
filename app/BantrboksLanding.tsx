@@ -95,7 +95,7 @@ export function BantrboksLanding() {
         <section className="mobile-room-entry" aria-label="Bantrboks room">
           <img
             className="mobile-room-poster"
-            src="/brand/bantrboks-room-rivalry-v2.webp"
+            src="/brand/bantrboks-room-rivalry-v3.webp"
             alt="BOKS vs ABS Bantrboks room"
             draggable={false}
           />
