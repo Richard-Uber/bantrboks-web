@@ -112,6 +112,14 @@ function cleanHandle(profile?: Profile | null) {
   return profile?.handle ? `@${profile.handle}` : "@bantrboks";
 }
 
+function normaliseHandle(value: string) {
+  return value
+    .trim()
+    .replace(/^@+/, "")
+    .replace(/[^a-zA-Z0-9_]/g, "")
+    .toLowerCase();
+}
+
 function firstPostUrl(body: string) {
   const match = body.match(/https?:\/\/[^\s<]+/i);
   return match?.[0]?.replace(/[),.!?;:'\"]+$/, "") ?? "";
@@ -314,6 +322,8 @@ export function BantrboksApp({ session }: { session: Session }) {
   const [createAccountOpen, setCreateAccountOpen] = useState(false);
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountHandle, setNewAccountHandle] = useState("");
+  const [profileNameDraft, setProfileNameDraft] = useState("");
+  const [profileHandleDraft, setProfileHandleDraft] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
@@ -426,6 +436,11 @@ export function BantrboksApp({ session }: { session: Session }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    setProfileNameDraft(profile?.display_name ?? "");
+    setProfileHandleDraft(profile?.handle ?? "");
+  }, [profile?.id, profile?.display_name, profile?.handle]);
 
   function switchAccount(profileId: string) {
     const nextAccount = accounts.find((account) => account.profile.id === profileId);
@@ -574,6 +589,47 @@ export function BantrboksApp({ session }: { session: Session }) {
       setBusy("");
       event.target.value = "";
     }
+  }
+
+  async function updateProfileIdentity(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const displayName = profileNameDraft.trim();
+    const handle = normaliseHandle(profileHandleDraft);
+
+    if (!displayName) {
+      setStatus("Add a profile name.");
+      return;
+    }
+    if (!handle || handle.length > 30) {
+      setStatus("Choose a handle of 30 characters or fewer using letters, numbers or underscores.");
+      return;
+    }
+
+    setBusy("profile");
+    setStatus("");
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ display_name: displayName, handle })
+      .eq("id", activeProfileId);
+
+    if (error) {
+      setBusy("");
+      const isHandleConflict = error.code === "23505" || /duplicate|unique|handle/i.test(error.message);
+      setStatus(isHandleConflict ? "That handle is already taken. Try another one." : `Profile did not update: ${error.message}`);
+      return;
+    }
+
+    const nextProfile = profile ? { ...profile, display_name: displayName, handle } : profile;
+    setProfile(nextProfile);
+    setAccounts((current) => current.map((account) => (
+      account.profile.id === activeProfileId
+        ? { ...account, profile: { ...account.profile, display_name: displayName, handle } }
+        : account
+    )));
+    setBusy("");
+    setStatus("Profile name and handle updated.");
+    await loadData();
   }
 
   async function createPost(event: FormEvent<HTMLFormElement>) {
@@ -889,6 +945,36 @@ export function BantrboksApp({ session }: { session: Session }) {
             <h2>{cleanHandle(profile)}</h2>
             <p>{profile?.display_name || session.user.email}</p>
             <p className="bb-master-email">Managed by {session.user.email}</p>
+            <form className="bb-profile-edit" onSubmit={updateProfileIdentity}>
+              <label>
+                Profile name
+                <input
+                  value={profileNameDraft}
+                  onChange={(event) => setProfileNameDraft(event.target.value)}
+                  placeholder="Profile name"
+                  maxLength={60}
+                  autoComplete="name"
+                />
+              </label>
+              <label>
+                Handle
+                <span className="bb-handle-input">
+                  <b aria-hidden="true">@</b>
+                  <input
+                    value={profileHandleDraft}
+                    onChange={(event) => setProfileHandleDraft(normaliseHandle(event.target.value))}
+                    placeholder="yourhandle"
+                    maxLength={30}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </span>
+              </label>
+              <button className="bb-primary" type="submit" disabled={busy === "profile"}>
+                {busy === "profile" ? "Saving..." : "Save profile"}
+              </button>
+            </form>
             {accounts.length > 1 ? (
               <button className="bb-secondary" type="button" onClick={() => setAccountMenuOpen(true)}>Switch account</button>
             ) : null}

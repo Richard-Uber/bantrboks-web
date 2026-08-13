@@ -212,6 +212,67 @@
   font-size: 14px;
 }
 
+.bb-profile-edit {
+  display: grid;
+  gap: 14px;
+  width: min(520px, 100%);
+  margin: 20px auto;
+  padding: 20px;
+  border: 2px solid rgba(53, 213, 213, 0.42);
+  border-radius: 20px;
+  background: rgba(53, 213, 213, 0.055);
+  text-align: left;
+}
+
+.bb-profile-edit label {
+  display: grid;
+  gap: 7px;
+  color: var(--bb-soft);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.bb-profile-edit input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 15px;
+  border: 2px solid #454545;
+  border-radius: 14px;
+  outline: 0;
+  color: #fff;
+  background: #0b0b0b;
+  font: inherit;
+  font-size: 17px;
+}
+
+.bb-profile-edit input:focus {
+  border-color: var(--bb-cyan);
+  box-shadow: 0 0 0 3px rgba(53, 213, 213, 0.14);
+}
+
+.bb-handle-input {
+  position: relative;
+  display: block;
+}
+
+.bb-handle-input b {
+  position: absolute;
+  top: 50%;
+  left: 15px;
+  z-index: 1;
+  transform: translateY(-50%);
+  color: var(--bb-yellow);
+  font-size: 18px;
+}
+
+.bb-handle-input input {
+  padding-left: 34px;
+}
+
+.bb-profile-edit .bb-primary {
+  justify-self: end;
+}
+
 .bb-avatar.large {
   width: 92px;
   height: 92px;
