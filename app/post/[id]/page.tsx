@@ -15,6 +15,7 @@ type SharedPost = {
 };
 
 const fallbackImage = "/brand/bantrboks-approved-website-landing.webp";
+const previewTimeoutMs = 4500;
 
 async function getSharedPost(id: string) {
   const { data } = await supabase
@@ -32,8 +33,36 @@ function postAuthor(post: SharedPost | null) {
 }
 
 function postDescription(post: SharedPost | null) {
-  if (!post?.body) return "View this take in the Springboks vs All Blacks Bantrboks room.";
-  return post.body.length > 180 ? `${post.body.slice(0, 177)}…` : post.body;
+  const text = post?.body?.replace(/https?:\/\/[^\s<]+/gi, "").replace(/\s+/g, " ").trim();
+  if (!text) return "View this take in the Springboks vs All Blacks Bantrboks room.";
+  return text.length > 180 ? `${text.slice(0, 177)}…` : text;
+}
+
+function firstPostUrl(body: string) {
+  return body.match(/https?:\/\/[^\s<]+/i)?.[0]?.replace(/[),.!?;:'\"]+$/, "") ?? "";
+}
+
+async function linkedPreviewImage(post: SharedPost | null) {
+  const linkedUrl = firstPostUrl(post?.body ?? "");
+  if (!linkedUrl) return "";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), previewTimeoutMs);
+  try {
+    const endpoint = new URL("/api/link-preview", "https://bantrboks.com");
+    endpoint.searchParams.set("url", linkedUrl);
+    const response = await fetch(endpoint, {
+      signal: controller.signal,
+      next: { revalidate: 3600 },
+    });
+    if (!response.ok) return "";
+    const preview = await response.json() as { image?: string };
+    return preview.image || "";
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function generateMetadata({
@@ -45,7 +74,7 @@ export async function generateMetadata({
   const post = await getSharedPost(id);
   const title = `${postAuthor(post)} on Bantrboks`;
   const description = postDescription(post);
-  const image = post?.media_url || fallbackImage;
+  const image = post?.media_url || await linkedPreviewImage(post) || fallbackImage;
   const canonical = `/post/${encodeURIComponent(id)}`;
 
   return {
@@ -56,9 +85,10 @@ export async function generateMetadata({
       type: "article",
       url: canonical,
       siteName: "Bantrboks",
+      locale: "en_ZA",
       title,
       description,
-      images: [{ url: image, alt: `${title} post preview` }],
+      images: [{ url: image, width: 1200, height: 630, alt: `${title} post preview` }],
     },
     twitter: {
       card: "summary_large_image",

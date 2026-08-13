@@ -296,11 +296,11 @@ function threadComments(comments: Comment[]): ThreadedComment[] {
 }
 
 async function sharePost(post: Post) {
-  if (!navigator.share) return;
-
   const postText = post.body.trim();
   const postUrl = new URL(`/post/${encodeURIComponent(post.id)}`, window.location.origin).href;
   const text = [postText, roomHash].filter(Boolean).join("\n\n");
+
+  if (!navigator.share) return false;
 
   try {
     await navigator.share({
@@ -308,9 +308,42 @@ async function sharePost(post: Post) {
       text,
       url: postUrl,
     });
+    return true;
   } catch (error) {
     if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
+    return false;
   }
+}
+
+function sharedPostUrl(postId: string) {
+  return new URL(`/post/${encodeURIComponent(postId)}`, window.location.origin).href;
+}
+
+async function copyPostLink(postId: string) {
+  const url = sharedPostUrl(postId);
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(url);
+    return;
+  }
+
+  const input = document.createElement("textarea");
+  input.value = url;
+  input.setAttribute("readonly", "");
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.appendChild(input);
+  input.select();
+  document.execCommand("copy");
+  input.remove();
+}
+
+function sharePostToFacebook(postId: string) {
+  const url = sharedPostUrl(postId);
+  window.open(
+    `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    "bantrboks-facebook-share",
+    "popup=yes,width=720,height=680,noopener,noreferrer"
+  );
 }
 
 export function BantrboksApp({ session }: { session: Session }) {
@@ -1021,6 +1054,8 @@ function Feed({
   setCommentDrafts: Dispatch<SetStateAction<Record<string, string>>>;
 }) {
   const [sharingPostId, setSharingPostId] = useState("");
+  const [shareMenuPostId, setShareMenuPostId] = useState("");
+  const [copiedPostId, setCopiedPostId] = useState("");
   const [replyTargets, setReplyTargets] = useState<Record<string, Comment | null>>({});
   const commentInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -1098,17 +1133,40 @@ function Feed({
                 type="button"
                 disabled={sharingPostId === post.id}
                 onClick={async () => {
-                  setSharingPostId(post.id);
-                  try {
-                    await sharePost(post);
-                  } finally {
-                    setSharingPostId("");
+                  const prefersNativeShare = window.matchMedia("(pointer: coarse)").matches && Boolean(navigator.share);
+                  if (prefersNativeShare) {
+                    setSharingPostId(post.id);
+                    try {
+                      await sharePost(post);
+                    } finally {
+                      setSharingPostId("");
+                    }
+                  } else {
+                    setShareMenuPostId((current) => current === post.id ? "" : post.id);
                   }
                 }}
+                aria-expanded={shareMenuPostId === post.id}
               >
                 {sharingPostId === post.id ? "Preparing…" : "Share"}
               </button>
             </div>
+            {shareMenuPostId === post.id ? (
+              <div className="bb-share-menu" role="group" aria-label="Share this Bantrboks post">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await copyPostLink(post.id);
+                    setCopiedPostId(post.id);
+                    window.setTimeout(() => setCopiedPostId(""), 2200);
+                  }}
+                >
+                  {copiedPostId === post.id ? "✓ Link copied" : "Copy link"}
+                </button>
+                <button type="button" onClick={() => sharePostToFacebook(post.id)}>
+                  Share to Facebook
+                </button>
+              </div>
+            ) : null}
             <div className="bb-comments">
               {threadedComments.map(({ comment, depth, displayBody, parentHandle }) => (
                 <article
