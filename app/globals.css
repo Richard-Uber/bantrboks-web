@@ -618,7 +618,7 @@
   cursor: pointer;
 }
 
-.bb-share-menu button:last-child {
+.bb-share-menu button:not(:first-child) {
   border-color: var(--bb-yellow);
   color: #050505;
   background: var(--bb-yellow);

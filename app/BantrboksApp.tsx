@@ -296,7 +296,7 @@ function threadComments(comments: Comment[]): ThreadedComment[] {
 }
 
 async function sharePost(post: Post) {
-  const postText = post.body.trim();
+  const postText = postTextWithoutUrls(post.body);
   const postUrl = new URL(`/post/${encodeURIComponent(post.id)}`, window.location.origin).href;
   const text = [postText, roomHash].filter(Boolean).join("\n\n");
 
@@ -344,6 +344,39 @@ function sharePostToFacebook(postId: string) {
     "bantrboks-facebook-share",
     "popup=yes,width=720,height=680,noopener,noreferrer"
   );
+}
+
+function sharePostToX(post: Post) {
+  const url = sharedPostUrl(post.id);
+  const take = postTextWithoutUrls(post.body);
+  const text = [take, roomHash].filter(Boolean).join("\n\n");
+  const intent = new URL("https://x.com/intent/post");
+  intent.searchParams.set("url", url);
+  if (text) intent.searchParams.set("text", text);
+  window.open(intent.href, "bantrboks-x-share", "popup=yes,width=720,height=680,noopener,noreferrer");
+}
+
+async function sharePostToInstagram(post: Post) {
+  const url = sharedPostUrl(post.id);
+  const take = postTextWithoutUrls(post.body);
+  const text = [take, roomHash, url].filter(Boolean).join("\n\n");
+
+  if (navigator.share && window.matchMedia("(pointer: coarse)").matches) {
+    await navigator.share({
+      title: `${cleanHandle(post.profiles)} on Bantrboks`,
+      text: [take, roomHash].filter(Boolean).join("\n\n"),
+      url,
+    });
+    return "shared" as const;
+  }
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+  } else {
+    await copyPostLink(post.id);
+  }
+  window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+  return "copied" as const;
 }
 
 export function BantrboksApp({ session }: { session: Session }) {
@@ -948,7 +981,7 @@ export function BantrboksApp({ session }: { session: Session }) {
                 <p>{item.body}</p>
                 <small>{formatAge(item.created_at)}</small>
               </article>
-            )) : <p className="bb-muted">No notifications yet. Replies, slaps and F Drops from this room will show here.</p>}
+            )) : <p className="bb-muted">No notifications yet. Replies, slaps and Drops from this room will show here.</p>}
           </section>
         ) : null}
 
@@ -1127,7 +1160,7 @@ function Feed({
             {post.audio_url ? <audio className="bb-post-audio" src={post.audio_url} controls /> : null}
             <div className="bb-actions">
               <button type="button" onClick={() => react(post.id, "slap")} disabled={busy === `${post.id}-slap`}>👋 Slap <b>{stats.slap}</b></button>
-              <button type="button" onClick={() => react(post.id, "mic")} disabled={busy === `${post.id}-mic`}>🔥 F Drop <b>{stats.mic}</b></button>
+              <button type="button" onClick={() => react(post.id, "mic")} disabled={busy === `${post.id}-mic`}>🔥 Drop <b>{stats.mic}</b></button>
               <button type="button" onClick={() => focusComment(post.id)}>💬 Reply <b>{stats.comments}</b></button>
               <button
                 type="button"
@@ -1164,6 +1197,21 @@ function Feed({
                 </button>
                 <button type="button" onClick={() => sharePostToFacebook(post.id)}>
                   Share to Facebook
+                </button>
+                <button type="button" onClick={() => sharePostToX(post)}>
+                  Share to X
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const result = await sharePostToInstagram(post);
+                    if (result === "copied") {
+                      setCopiedPostId(post.id);
+                      window.setTimeout(() => setCopiedPostId(""), 2200);
+                    }
+                  }}
+                >
+                  {copiedPostId === post.id ? "✓ Copied for Instagram" : "Share to Instagram"}
                 </button>
               </div>
             ) : null}
