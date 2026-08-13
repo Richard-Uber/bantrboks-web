@@ -77,6 +77,7 @@ type LinkPreviewData = {
 
 const roomName = "Springboks vs All Blacks";
 const roomSlug = "springboksvsallblacks";
+const roomTags = [roomName, roomSlug];
 const roomHash = "#springboksvsallblacks";
 const roomChannelName = "bantrboks-live-springboksvsallblacks";
 
@@ -357,7 +358,7 @@ export function BantrboksApp({ session }: { session: Session }) {
         supabase
           .from("posts")
           .select("id, author_id, body, tags, media_url, audio_url, created_at, profiles(id, handle, display_name, avatar, bio)")
-          .contains("tags", [roomSlug])
+          .overlaps("tags", roomTags)
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
           .limit(40),
@@ -448,13 +449,22 @@ export function BantrboksApp({ session }: { session: Session }) {
       .on("broadcast", { event: "message" }, ({ payload }) => {
         setChatMessages((current) => [...current, payload as ChatMessage].slice(-80));
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => {
+        void loadData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, () => {
+        void loadData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "post_reactions" }, () => {
+        void loadData();
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
       chatChannel.current = null;
     };
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -550,7 +560,7 @@ export function BantrboksApp({ session }: { session: Session }) {
         id: String(Date.now()),
         author_id: activeProfileId,
         body,
-        tags: [roomSlug, "bantrbox"],
+        tags: [...roomTags, "bantrbox"],
         media_url: mediaUrl,
         visibility: "Everyone",
       });
