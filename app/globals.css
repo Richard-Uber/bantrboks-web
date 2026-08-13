@@ -2060,8 +2060,25 @@ a {
 
 .bb-room-hero {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   margin: 0 auto 22px;
+}
+
+.bb-room-byline {
+  margin: 0 0 8px;
+  color: #f8f6ec;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  text-shadow: 0 0 12px rgba(53, 213, 213, 0.38);
+}
+
+.bb-room-byline:hover {
+  color: var(--bb-cyan);
 }
 
 .bb-room-hero img {

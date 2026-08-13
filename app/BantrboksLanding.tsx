@@ -54,6 +54,9 @@ export function BantrboksLanding() {
           alt="Bantrboks"
           draggable={false}
         />
+        <a className="approved-division" href="https://bantrbox.com" target="_blank" rel="noreferrer">
+          By Bantrbox.com
+        </a>
         <h1 className="sr-only">Bantrboks</h1>
         <p className="sr-only">
           Boks versus ABs. Drop your take, back your side and climb the board.
@@ -86,7 +89,7 @@ export function BantrboksLanding() {
         <header className="mobile-header">
           <img className="mobile-logo" src="/bantrboks-logo.webp" alt="Bantrboks" draggable={false} />
           <a className="mobile-division" href="https://bantrbox.com" target="_blank" rel="noreferrer">
-            By bantrbox.com
+            By Bantrbox.com
           </a>
         </header>
 

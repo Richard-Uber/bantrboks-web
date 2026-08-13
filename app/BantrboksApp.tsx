@@ -825,6 +825,9 @@ export function BantrboksApp({ session }: { session: Session }) {
       <BantrboksTagline />
 
       <section className="bb-room-hero">
+        <a className="bb-room-byline" href="https://bantrbox.com" target="_blank" rel="noreferrer">
+          By Bantrbox.com
+        </a>
         <img src="/brand/bantrboks-room-rivalry-v3.webp" alt="BOKS vs ABS Bantrboks room" />
       </section>
 
