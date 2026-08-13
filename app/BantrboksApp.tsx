@@ -116,6 +116,25 @@ function firstPostUrl(body: string) {
   return match?.[0]?.replace(/[),.!?;:'\"]+$/, "") ?? "";
 }
 
+function postTextWithoutUrls(body: string) {
+  return body
+    .replace(/https?:\/\/[^\s<]+/gi, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function PostUrl({ body }: { body: string }) {
+  const url = firstPostUrl(body);
+  if (!url) return null;
+
+  return (
+    <a className="bb-post-url" href={url} target="_blank" rel="noopener noreferrer">
+      {url}
+    </a>
+  );
+}
+
 function LinkifiedText({ text }: { text: string }) {
   const output: ReactNode[] = [];
   const pattern = /https?:\/\/[^\s<]+/gi;
@@ -953,6 +972,7 @@ function Feed({
         const postComments = comments.filter((comment) => comment.post_id === post.id);
         const threadedComments = threadComments(postComments);
         const replyTarget = replyTargets[post.id];
+        const postText = postTextWithoutUrls(post.body);
         return (
           <article className="bb-post" key={post.id}>
             <header>
@@ -963,8 +983,9 @@ function Feed({
               </div>
             </header>
             <span className="bb-tag">{roomHash}</span>
-            <p className="bb-post-body"><LinkifiedText text={post.body} /></p>
+            {postText ? <p className="bb-post-body"><LinkifiedText text={postText} /></p> : null}
             <LinkPreview body={post.body} />
+            <PostUrl body={post.body} />
             {post.media_url ? <img className="bb-post-media" src={post.media_url} alt="Bantr media" /> : null}
             {post.audio_url ? <audio className="bb-post-audio" src={post.audio_url} controls /> : null}
             <div className="bb-actions">
