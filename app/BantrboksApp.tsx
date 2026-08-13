@@ -55,8 +55,11 @@ type Reaction = {
 };
 type NotificationRow = {
   id: string;
+  title: string | null;
   body: string;
   kind: string | null;
+  post_id: string | null;
+  comment_id: string | null;
   read_at: string | null;
   created_at: string;
 };
@@ -379,6 +382,7 @@ export function BantrboksApp({ session }: { session: Session }) {
   const [newAccountHandle, setNewAccountHandle] = useState("");
   const [profileNameDraft, setProfileNameDraft] = useState("");
   const [profileHandleDraft, setProfileHandleDraft] = useState("");
+  const [viewedProfile, setViewedProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
@@ -471,7 +475,7 @@ export function BantrboksApp({ session }: { session: Session }) {
           .limit(500),
         supabase
           .from("notifications")
-          .select("id, body, kind, read_at, created_at")
+          .select("id, title, body, kind, post_id, comment_id, read_at, created_at")
           .eq("user_id", activeProfileId)
           .order("created_at", { ascending: false })
           .limit(40),
@@ -496,6 +500,65 @@ export function BantrboksApp({ session }: { session: Session }) {
     setProfileNameDraft(profile?.display_name ?? "");
     setProfileHandleDraft(profile?.handle ?? "");
   }, [profile?.id, profile?.display_name, profile?.handle]);
+
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((notification) => !notification.read_at).length,
+    [notifications]
+  );
+
+  async function markNotificationRead(notificationId: string) {
+    const notification = notifications.find((item) => item.id === notificationId);
+    if (notification?.read_at) return;
+    const readAt = new Date().toISOString();
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: readAt })
+      .eq("id", notificationId)
+      .eq("user_id", activeProfileId);
+    if (error) {
+      setStatus(`Notification did not update: ${error.message}`);
+      return;
+    }
+    setNotifications((current) => current.map((notification) => (
+      notification.id === notificationId ? { ...notification, read_at: readAt } : notification
+    )));
+  }
+
+  async function openNotification(notification: NotificationRow) {
+    await markNotificationRead(notification.id);
+    if (!notification.post_id) return;
+
+    setView("home");
+    window.setTimeout(() => {
+      document.getElementById(`post-${notification.post_id}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 100);
+  }
+
+  async function markAllNotificationsRead() {
+    const unreadIds = notifications.filter((notification) => !notification.read_at).map((notification) => notification.id);
+    if (!unreadIds.length) return;
+    const readAt = new Date().toISOString();
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: readAt })
+      .eq("user_id", activeProfileId)
+      .in("id", unreadIds);
+    if (error) {
+      setStatus(`Notifications did not update: ${error.message}`);
+      return;
+    }
+    setNotifications((current) => current.map((notification) => (
+      unreadIds.includes(notification.id) ? { ...notification, read_at: readAt } : notification
+    )));
+  }
+
+  function openLadderProfile(rowProfile?: Profile | null) {
+    if (!rowProfile) return;
+    setViewedProfile(rowProfile);
+  }
 
   function switchAccount(profileId: string) {
     const nextAccount = accounts.find((account) => account.profile.id === profileId);
@@ -558,6 +621,9 @@ export function BantrboksApp({ session }: { session: Session }) {
         void loadData();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "post_reactions" }, () => {
+        void loadData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${activeProfileId}` }, () => {
         void loadData();
       })
       .subscribe();
@@ -902,7 +968,7 @@ export function BantrboksApp({ session }: { session: Session }) {
             <h2>Room ladder</h2>
             <div className="bb-ladder-list">
               {leaderboard.length ? leaderboard.map((row, index) => (
-                <button className="bb-ladder-row" key={row.id} type="button" onClick={() => setView("profile")}>
+                <button className="bb-ladder-row" key={row.id} type="button" onClick={() => openLadderProfile(row.profile)}>
                   <strong>{index + 1}</strong>
                   <Avatar profile={row.profile} />
                   <span>
@@ -963,13 +1029,21 @@ export function BantrboksApp({ session }: { session: Session }) {
 
         {view === "notifications" ? (
           <section className="bb-card">
-            <h2>Room notifications</h2>
+            <header className="bb-notification-header">
+              <h2>Room notifications</h2>
+              {unreadNotificationCount ? <button type="button" onClick={markAllNotificationsRead}>Mark all read</button> : null}
+            </header>
             {notifications.length ? notifications.map((item) => (
-              <article className="bb-notification" key={item.id}>
-                <strong>{item.kind || "Bantrboks"}</strong>
+              <button
+                className={`bb-notification${item.read_at ? "" : " is-unread"}`}
+                key={item.id}
+                type="button"
+                onClick={() => openNotification(item)}
+              >
+                <strong>{item.title || item.kind || "Bantrboks"}</strong>
                 <p>{item.body}</p>
                 <small>{formatAge(item.created_at)}</small>
-              </article>
+              </button>
             )) : <p className="bb-muted">No notifications yet. Replies, slaps and Drops from this room will show here.</p>}
           </section>
         ) : null}
@@ -1043,13 +1117,29 @@ export function BantrboksApp({ session }: { session: Session }) {
             <button className="bb-secondary" type="button" onClick={signOut}>Sign out</button>
           </section>
         ) : null}
+
+        {viewedProfile ? (
+          <div className="bb-public-profile-backdrop" role="presentation" onMouseDown={() => setViewedProfile(null)}>
+            <section className="bb-public-profile" role="dialog" aria-modal="true" aria-labelledby="ladder-profile-title" onMouseDown={(event) => event.stopPropagation()}>
+              <button className="bb-public-profile-close" type="button" aria-label="Close participant profile" onClick={() => setViewedProfile(null)}>×</button>
+              <Avatar profile={viewedProfile} className="large" />
+              <h2 id="ladder-profile-title">{cleanHandle(viewedProfile)}</h2>
+              <p>{viewedProfile.display_name || "Bantrboks user"}</p>
+              {viewedProfile.bio ? <p className="bb-bio">{viewedProfile.bio}</p> : null}
+              <small>Bantrboks ladder participant</small>
+            </section>
+          </div>
+        ) : null}
       </section>
 
       <nav className="bb-bottom-nav" aria-label="Bantrboks navigation">
         {navButton("home", "Home", "⌂")}
         {navButton("ranking", "Ranking", "🏆")}
         {navButton("create", "Create", "+")}
-        {navButton("notifications", "Notifs", "●")}
+        <button className={view === "notifications" ? "is-active" : undefined} onClick={() => setView("notifications")} type="button">
+          <span className="bb-nav-notification-icon" aria-hidden="true">●{unreadNotificationCount ? <b>{Math.min(unreadNotificationCount, 99)}</b> : null}</span>
+          Notifs
+        </button>
         {navButton("chat", "Chat", "✉")}
       </nav>
     </main>
@@ -1133,7 +1223,7 @@ function Feed({
         const replyTarget = replyTargets[post.id];
         const postText = postTextWithoutUrls(post.body);
         return (
-          <article className="bb-post" key={post.id}>
+          <article className="bb-post" id={`post-${post.id}`} key={post.id}>
             <header>
               <Avatar profile={post.profiles} />
               <div>

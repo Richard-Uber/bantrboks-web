@@ -830,11 +830,35 @@
   font-weight: 950;
 }
 
+.bb-notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.bb-notification-header h2 { margin: 0; }
+
+.bb-notification-header button {
+  border: 0;
+  color: var(--bb-cyan);
+  background: transparent;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .bb-notification {
+  display: block;
+  width: 100%;
   padding: 16px;
   border: 2px solid var(--bb-cyan);
   border-radius: 16px;
+  color: #f8f6ec;
   background: rgba(0, 0, 0, 0.34);
+  text-align: left;
+  cursor: pointer;
 }
 
 .bb-notification + .bb-notification {
@@ -843,6 +867,54 @@
 
 .bb-notification strong {
   color: var(--bb-yellow);
+}
+
+.bb-notification p { margin: 7px 0; }
+
+.bb-notification.is-unread {
+  background: rgba(53, 213, 213, 0.12);
+  box-shadow: inset 5px 0 0 var(--bb-yellow);
+}
+
+.bb-public-profile-backdrop {
+  position: fixed;
+  z-index: 140;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+.bb-public-profile {
+  position: relative;
+  width: min(460px, 100%);
+  padding: 34px 24px 28px;
+  border: 3px solid var(--bb-yellow);
+  border-radius: 24px;
+  background: #050505;
+  text-align: center;
+  box-shadow: 0 18px 70px #000, 0 0 30px rgba(53, 213, 213, 0.2);
+}
+
+.bb-public-profile h2 { margin: 4px 0; }
+.bb-public-profile > p { margin: 6px 0 18px; }
+.bb-public-profile > small { color: var(--bb-soft); font-weight: 800; }
+
+.bb-public-profile-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #555;
+  border-radius: 50%;
+  color: #fff;
+  background: #171717;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .bb-chat {
@@ -923,6 +995,26 @@
   display: block;
   color: inherit;
   font-size: 26px;
+  line-height: 1;
+}
+
+.bb-nav-notification-icon {
+  position: relative;
+}
+
+.bb-nav-notification-icon b {
+  position: absolute;
+  top: -10px;
+  right: -16px;
+  display: grid;
+  place-items: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #050505;
+  background: var(--bb-yellow);
+  font-size: 11px;
   line-height: 1;
 }
 
