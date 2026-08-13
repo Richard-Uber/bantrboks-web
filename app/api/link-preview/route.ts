@@ -41,6 +41,13 @@ function isSupportedPreviewHostname(hostname: string) {
   return supportedPreviewHosts.some((host) => value === host || value.endsWith(`.${host}`));
 }
 
+function socialPlatform(url: URL) {
+  const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+  if ((hostname === "x.com" || hostname === "twitter.com") && /\/status\/\d+/.test(url.pathname)) return "x";
+  if (hostname === "facebook.com" || hostname.endsWith(".facebook.com") || hostname === "fb.watch") return "facebook";
+  return null;
+}
+
 function safeWebUrl(value: string, base?: string, requireSupportedHost = true) {
   try {
     const url = new URL(value, base);
@@ -115,6 +122,7 @@ async function readLimitedHtml(response: Response) {
 export async function GET(request: Request) {
   const requested = safeWebUrl(new URL(request.url).searchParams.get("url") || "");
   if (!requested) return Response.json({ error: "Invalid public web address." }, { status: 400 });
+  const requestedSocialPlatform = socialPlatform(requested);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), previewTimeoutMs);
@@ -155,12 +163,25 @@ export async function GET(request: Request) {
       description: values.get("og:description") || values.get("twitter:description") || values.get("description") || "",
       image,
       siteName: values.get("og:site_name") || current.hostname.replace(/^www\./, ""),
+      embedPlatform: socialPlatform(current),
     };
 
     return Response.json(payload, {
       headers: { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" },
     });
   } catch {
+    if (requestedSocialPlatform) {
+      return Response.json({
+        url: requested.href,
+        title: requestedSocialPlatform === "x" ? "View this post on X" : "View this Facebook post",
+        description: "Public social post preview",
+        image: "",
+        siteName: requestedSocialPlatform === "x" ? "X" : "Facebook",
+        embedPlatform: requestedSocialPlatform,
+      }, {
+        headers: { "Cache-Control": "public, max-age=900, stale-while-revalidate=3600" },
+      });
+    }
     return Response.json({ error: "Preview unavailable." }, { status: 502 });
   } finally {
     clearTimeout(timeout);

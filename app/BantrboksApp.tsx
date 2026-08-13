@@ -73,6 +73,7 @@ type LinkPreviewData = {
   description: string;
   image: string;
   siteName: string;
+  embedPlatform?: "x" | "facebook" | null;
 };
 
 const roomName = "Springboks vs All Blacks";
@@ -198,15 +199,27 @@ function LinkPreview({ body }: { body: string }) {
   }
 
   return (
-    <a className="bb-link-preview" href={url} target="_blank" rel="noopener noreferrer">
-      {preview?.image ? <img src={preview.image} alt="" loading="lazy" /> : null}
-      <span>
-        <small>{preview?.siteName || domain}</small>
-        <strong>{preview?.title || `View content on ${domain}`}</strong>
-        {preview?.description ? <em>{preview.description}</em> : null}
-        <b>Open link <span aria-hidden="true">↗</span></b>
-      </span>
-    </a>
+    <>
+      {preview?.embedPlatform ? (
+        <iframe
+          className={`bb-social-embed bb-social-embed-${preview.embedPlatform}`}
+          src={`/api/social-embed?url=${encodeURIComponent(preview.url || url)}`}
+          title={`${preview.siteName || domain} post preview`}
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        />
+      ) : (
+        <a className="bb-link-preview" href={url} target="_blank" rel="noopener noreferrer">
+          {preview?.image ? <img src={preview.image} alt="" loading="lazy" /> : null}
+          <span>
+            <small>{preview?.siteName || domain}</small>
+            <strong>{preview?.title || `View content on ${domain}`}</strong>
+            {preview?.description ? <em>{preview.description}</em> : null}
+            <b>Open link <span aria-hidden="true">↗</span></b>
+          </span>
+        </a>
+      )}
+    </>
   );
 }
 
