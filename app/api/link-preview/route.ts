@@ -44,7 +44,9 @@ function isSupportedPreviewHostname(hostname: string) {
 function socialPlatform(url: URL) {
   const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
   if ((hostname === "x.com" || hostname === "twitter.com") && /\/status\/\d+/.test(url.pathname)) return "x";
-  if (hostname === "facebook.com" || hostname.endsWith(".facebook.com") || hostname === "fb.watch") return "facebook";
+  // Facebook share URLs and private posts frequently render an unavailable
+  // iframe even when the URL itself opens in a signed-in browser. Prefer the
+  // metadata card returned below and never promise an embeddable Facebook post.
   return null;
 }
 

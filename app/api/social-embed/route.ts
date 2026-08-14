@@ -1,4 +1,4 @@
-const allowedHosts = ["facebook.com", "fb.watch", "twitter.com", "x.com"];
+const allowedHosts = ["twitter.com", "x.com"];
 
 function publicSocialUrl(value: string) {
   try {
@@ -21,25 +21,21 @@ export async function GET(request: Request) {
   if (!url) return new Response("Invalid social post URL", { status: 400 });
 
   const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
-  let body = "";
-
-  if ((hostname === "x.com" || hostname === "twitter.com") && /\/status\/\d+/.test(url.pathname)) {
-    const canonical = url.href.replace("x.com/", "twitter.com/");
-    body = htmlShell(
-      `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true"><a href="${canonical.replace(/"/g, "&quot;")}">View post on X</a></blockquote>`,
-      `<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>`
-    );
-  } else {
-    body = htmlShell(
-      `<iframe title="Facebook post" src="https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url.href)}&show_text=true&width=680" width="680" height="760" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>`
-    );
+  if (!((hostname === "x.com" || hostname === "twitter.com") && /\/status\/\d+/.test(url.pathname))) {
+    return new Response("Social post cannot be safely embedded", { status: 422 });
   }
+
+  const canonical = url.href.replace("x.com/", "twitter.com/");
+  const body = htmlShell(
+    `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true"><a href="${canonical.replace(/"/g, "&quot;")}">View post on X</a></blockquote>`,
+    `<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>`
+  );
 
   return new Response(body, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src https://platform.twitter.com; frame-src https://www.facebook.com https://platform.twitter.com https://syndication.twitter.com; img-src https: data:; connect-src https://*.twitter.com https://*.x.com https://*.facebook.com; font-src https: data:;",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src https://platform.twitter.com; frame-src https://platform.twitter.com https://syndication.twitter.com; img-src https: data:; connect-src https://*.twitter.com https://*.x.com; font-src https: data:;",
     },
   });
 }

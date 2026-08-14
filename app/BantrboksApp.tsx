@@ -200,7 +200,7 @@ function LinkPreview({ body }: { body: string }) {
 
   return (
     <>
-      {preview?.embedPlatform ? (
+      {preview?.embedPlatform === "x" ? (
         <iframe
           className={`bb-social-embed bb-social-embed-${preview.embedPlatform}`}
           src={`/api/social-embed?url=${encodeURIComponent(preview.url || url)}`}
