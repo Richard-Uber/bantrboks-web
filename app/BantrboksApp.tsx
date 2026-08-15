@@ -209,7 +209,7 @@ function LinkPreview({ body }: { body: string }) {
           sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
         />
       ) : (
-        <a className="bb-link-preview" href={url} target="_blank" rel="noopener noreferrer">
+        <a className="bb-link-preview" href={preview?.url || url} target="_blank" rel="noopener noreferrer">
           {preview?.image ? <img src={preview.image} alt="" loading="lazy" /> : null}
           <span>
             <small>{preview?.siteName || domain}</small>

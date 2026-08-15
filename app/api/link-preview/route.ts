@@ -159,8 +159,12 @@ export async function GET(request: Request) {
     const { values, title } = metadata(html);
     const rawImage = values.get("og:image") || values.get("twitter:image") || "";
     const image = rawImage ? safeWebUrl(rawImage, current.href, false)?.href || "" : "";
+    const canonicalUrl = safeWebUrl(
+      values.get("og:url") || values.get("twitter:url") || "",
+      current.href,
+    );
     const payload = {
-      url: current.href,
+      url: canonicalUrl?.href || current.href,
       title: values.get("og:title") || values.get("twitter:title") || title || current.hostname,
       description: values.get("og:description") || values.get("twitter:description") || values.get("description") || "",
       image,
