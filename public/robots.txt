@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://bantrboks.com/sitemap.xml
