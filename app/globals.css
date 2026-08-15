@@ -1709,13 +1709,16 @@ a {
   background: #3f3f3f;
 }
 
-.mobile-auth-google {
+.mobile-auth-providers {
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-auth-provider {
   min-height: 54px;
   width: 100%;
-  border: 2px solid #4a4a4a;
+  border: 2px solid transparent;
   border-radius: 999px;
-  background: #fff;
-  color: #171717;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1725,16 +1728,46 @@ a {
   cursor: pointer;
 }
 
-.mobile-auth-google svg {
+.mobile-auth-provider svg {
   width: 22px;
   height: 22px;
   flex: 0 0 22px;
+}
+
+.mobile-auth-google {
+  border-color: #4a4a4a;
+  background: #fff;
+  color: #171717;
 }
 
 .mobile-auth-google:hover,
 .mobile-auth-google:focus-visible {
   background: #f2f2f2;
   border-color: #35d4de;
+}
+
+.mobile-auth-facebook {
+  border-color: #1877f2;
+  background: #1877f2;
+  color: #fff;
+}
+
+.mobile-auth-facebook:hover,
+.mobile-auth-facebook:focus-visible {
+  border-color: #35d4de;
+  background: #1268da;
+}
+
+.mobile-auth-apple {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: #000;
+  color: #fff;
+}
+
+.mobile-auth-apple:hover,
+.mobile-auth-apple:focus-visible {
+  border-color: #35d4de;
+  background: #151515;
 }
 
 .desktop-auth-modal .mobile-auth-primary,

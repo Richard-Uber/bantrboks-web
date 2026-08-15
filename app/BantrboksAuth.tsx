@@ -5,12 +5,14 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
 type AuthMode = "create" | "signin";
+type OAuthProvider = "google" | "facebook" | "apple";
 
 const roomName = "Springboks vs All Blacks";
 const roomSlug = "springboksvsallblacks";
 const legalVersion = "bantrbox-platform-2026-08";
 const signupSource = "bantrboks";
 const acquisitionCampaign = "springboks-all-blacks-tour";
+const oauthReturnPathKey = "bantrboks_oauth_return_path";
 
 function normaliseHandle(value: string) {
   return value
@@ -31,6 +33,23 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
   const [busy, setBusy] = useState(false);
 
   const cleanHandle = useMemo(() => normaliseHandle(handle), [handle]);
+
+  function returnToIntendedPage() {
+    if (typeof window === "undefined") return false;
+
+    const returnPath = window.sessionStorage.getItem(oauthReturnPathKey);
+    if (!returnPath) return false;
+
+    window.sessionStorage.removeItem(oauthReturnPathKey);
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+    if (!returnPath.startsWith("/") || returnPath.startsWith("//") || returnPath === currentPath) {
+      return false;
+    }
+
+    window.location.assign(returnPath);
+    return true;
+  }
 
   async function syncProfile(user?: User | null) {
     const activeUser = user ?? (await supabase.auth.getUser()).data.user;
@@ -113,6 +132,7 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
       const synced = await syncProfile(data.session.user);
 
       if (isMounted && synced) {
+        if (returnToIntendedPage()) return;
         setMessage("Your Bantrbox account is ready in the Bantrboks room.");
 
         if (window.location.hash || window.location.search.includes("verified")) {
@@ -132,6 +152,7 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
 
       const synced = await syncProfile(session.user);
       if (isMounted && synced) {
+        if (returnToIntendedPage()) return;
         setMessage("Your Bantrbox account is ready in the Bantrboks room.");
       }
     });
@@ -274,25 +295,38 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
     setMessage("Password reset email sent. Check your inbox.");
   }
 
-  async function continueWithGoogle() {
+  async function continueWithOAuth(provider: OAuthProvider) {
     setMessage("");
     setError("");
     setBusy(true);
 
     const redirectTo = typeof window === "undefined" ? undefined : window.location.origin;
-    const { error: googleError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(
+        oauthReturnPathKey,
+        `${window.location.pathname}${window.location.search}${window.location.hash}`
+      );
+    }
+
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider,
       options: {
         redirectTo,
-        queryParams: {
-          prompt: "select_account",
-        },
+        ...(provider === "google"
+          ? { queryParams: { prompt: "select_account" } }
+          : provider === "facebook"
+            ? { scopes: "email" }
+            : { scopes: "name email" }),
       },
     });
 
-    if (googleError) {
+    if (oauthError) {
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(oauthReturnPathKey);
+      }
       setBusy(false);
-      setError(googleError.message);
+      setError(oauthError.message);
     }
   }
 
@@ -367,20 +401,44 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
       <div className="mobile-auth-divider" aria-hidden="true">
         <span>or</span>
       </div>
-      <button
-        className="mobile-auth-google"
-        type="button"
-        onClick={continueWithGoogle}
-        disabled={busy}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="#4285f4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.91h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z" />
-          <path fill="#34a853" d="M12 22c2.7 0 4.98-.9 6.63-2.37l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z" />
-          <path fill="#fbbc05" d="M6.39 13.92A6.02 6.02 0 0 1 6.08 12c0-.67.12-1.32.31-1.92V7.46H3.04A10 10 0 0 0 2 12c0 1.61.38 3.14 1.04 4.54l3.35-2.62Z" />
-          <path fill="#ea4335" d="M12 5.95c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.96 5.46l3.35 2.62C7.18 7.71 9.39 5.95 12 5.95Z" />
-        </svg>
-        Continue with Google
-      </button>
+      <div className="mobile-auth-providers" aria-label="Social account access">
+        <button
+          className="mobile-auth-provider mobile-auth-google"
+          type="button"
+          onClick={() => continueWithOAuth("google")}
+          disabled={busy}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285f4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.91h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z" />
+            <path fill="#34a853" d="M12 22c2.7 0 4.98-.9 6.63-2.37l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z" />
+            <path fill="#fbbc05" d="M6.39 13.92A6.02 6.02 0 0 1 6.08 12c0-.67.12-1.32.31-1.92V7.46H3.04A10 10 0 0 0 2 12c0 1.61.38 3.14 1.04 4.54l3.35-2.62Z" />
+            <path fill="#ea4335" d="M12 5.95c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.96 5.46l3.35 2.62C7.18 7.71 9.39 5.95 12 5.95Z" />
+          </svg>
+          Continue with Google
+        </button>
+        <button
+          className="mobile-auth-provider mobile-auth-facebook"
+          type="button"
+          onClick={() => continueWithOAuth("facebook")}
+          disabled={busy}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M14.1 22v-9h3l.45-3.5H14.1V7.27c0-1.01.28-1.7 1.73-1.7h1.85V2.45c-.32-.04-1.42-.14-2.7-.14-2.67 0-4.5 1.63-4.5 4.63V9.5H7.46V13h3.02v9h3.62Z" />
+          </svg>
+          Continue with Facebook
+        </button>
+        <button
+          className="mobile-auth-provider mobile-auth-apple"
+          type="button"
+          onClick={() => continueWithOAuth("apple")}
+          disabled={busy}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M17.05 12.54c-.03-3.04 2.48-4.51 2.6-4.58a5.57 5.57 0 0 0-4.38-2.37c-1.84-.2-3.63 1.1-4.57 1.1-.96 0-2.4-1.08-3.97-1.05a5.8 5.8 0 0 0-4.88 2.98c-2.12 3.67-.54 9.06 1.49 12.03 1.02 1.45 2.2 3.07 3.77 3.01 1.54-.06 2.11-.97 3.97-.97 1.84 0 2.38.97 3.98.93 1.65-.02 2.69-1.46 3.67-2.92a12.03 12.03 0 0 0 1.68-3.42 5.24 5.24 0 0 1-3.36-4.74ZM14.07 3.64A5.3 5.3 0 0 0 15.28 0a5.4 5.4 0 0 0-3.49 1.73 5.05 5.05 0 0 0-1.24 3.5 4.45 4.45 0 0 0 3.52-1.59Z" />
+          </svg>
+          Continue with Apple
+        </button>
+      </div>
       <button
         className="mobile-auth-secondary"
         type="button"
