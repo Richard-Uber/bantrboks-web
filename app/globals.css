@@ -427,6 +427,18 @@
   margin-bottom: 18px;
 }
 
+.bb-inline-edit {
+  margin-left: auto;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid #35d4d0;
+  border-radius: 999px;
+  background: #07191a;
+  color: #35d4d0;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .bb-post header strong,
 .bb-ladder-row b {
   display: block;
@@ -694,6 +706,91 @@
   font-size: 14px;
   font-weight: 950;
   cursor: pointer;
+}
+
+.bb-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bb-edited-label {
+  display: inline-block;
+  margin-left: 8px;
+  color: #88887f;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.bb-edit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.bb-edit-dialog {
+  width: min(520px, 100%);
+  padding: 22px;
+  border: 2px solid #35d4d0;
+  border-radius: 22px;
+  background: #080808;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.7);
+}
+
+.bb-edit-dialog h2 {
+  margin: 0 0 14px;
+  color: #ffd900;
+}
+
+.bb-edit-dialog textarea {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid #4a4a43;
+  border-radius: 12px;
+  background: #141414;
+  color: #f8f8f0;
+  font: inherit;
+}
+
+.bb-edit-dialog > small {
+  display: block;
+  margin-top: 6px;
+  color: #8d8d85;
+  text-align: right;
+}
+
+.bb-edit-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.bb-edit-dialog-actions button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffd900;
+  color: #080808;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.bb-edit-dialog-actions .bb-edit-cancel {
+  border: 1px solid #4a4a43;
+  background: #151515;
+  color: #f8f8f0;
+}
+
+.bb-edit-dialog-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .bb-comment-form {

@@ -25,6 +25,7 @@ type Post = {
   media_url: string | null;
   audio_url: string | null;
   created_at: string;
+  edited_at: string | null;
   profiles?: Profile | null;
 };
 type Comment = {
@@ -33,6 +34,7 @@ type Comment = {
   author_id: string;
   body: string;
   created_at: string;
+  edited_at: string | null;
   profiles?: Profile | null;
 };
 type CommentThreadNode = {
@@ -467,14 +469,14 @@ export function BantrboksApp({ session }: { session: Session }) {
           .maybeSingle(),
         supabase
           .from("posts")
-          .select("id, author_id, body, tags, media_url, audio_url, created_at, profiles(id, handle, display_name, avatar, bio)")
+          .select("id, author_id, body, tags, media_url, audio_url, created_at, edited_at, profiles(id, handle, display_name, avatar, bio)")
           .overlaps("tags", roomTags)
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
           .limit(40),
         supabase
           .from("comments")
-          .select("id, post_id, author_id, body, created_at, profiles(id, handle, display_name, avatar, bio)")
+          .select("id, post_id, author_id, body, created_at, edited_at, profiles(id, handle, display_name, avatar, bio)")
           .is("deleted_at", null)
           .order("created_at", { ascending: true })
           .limit(250),
@@ -841,6 +843,74 @@ export function BantrboksApp({ session }: { session: Session }) {
     return true;
   }
 
+  async function editPost(postId: string, nextBody: string) {
+    const post = posts.find((item) => item.id === postId);
+    const body = nextBody.trim();
+
+    if (!post || post.author_id !== activeProfileId) {
+      setStatus("You can only edit your own bantrs.");
+      return false;
+    }
+
+    if (!body && !post.media_url && !post.audio_url) {
+      setStatus("A bantr needs text, media or a voice clip.");
+      return false;
+    }
+
+    setBusy(`edit-post-${postId}`);
+    const { error } = await supabase
+      .from("posts")
+      .update({ body, edited_at: new Date().toISOString() })
+      .eq("id", postId)
+      .eq("author_id", activeProfileId)
+      .is("deleted_at", null);
+    setBusy("");
+
+    if (error) {
+      setStatus(`Bantr did not update: ${error.message}`);
+      return false;
+    }
+
+    setStatus("Bantr updated.");
+    await loadData();
+    return true;
+  }
+
+  async function editComment(commentId: string, nextBody: string) {
+    const comment = comments.find((item) => item.id === commentId);
+    const body = nextBody.trim();
+
+    if (!comment || comment.author_id !== activeProfileId) {
+      setStatus("You can only edit your own comments.");
+      return false;
+    }
+
+    if (!body) {
+      setStatus("A comment cannot be empty.");
+      return false;
+    }
+
+    const parentId = parseCommentReply(comment.body).parentId;
+    const storedBody = parentId ? `[[reply:${parentId}]]${body}` : body;
+    setBusy(`edit-comment-${commentId}`);
+    const { error } = await supabase
+      .from("comments")
+      .update({ body: storedBody, edited_at: new Date().toISOString() })
+      .eq("id", commentId)
+      .eq("author_id", activeProfileId)
+      .is("deleted_at", null);
+    setBusy("");
+
+    if (error) {
+      setStatus(`Comment did not update: ${error.message}`);
+      return false;
+    }
+
+    setStatus("Comment updated.");
+    await loadData();
+    return true;
+  }
+
   async function sendChat(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!chatDraft.trim() || !chatChannel.current) return;
@@ -969,7 +1039,7 @@ export function BantrboksApp({ session }: { session: Session }) {
 
       <section className="bb-content">
         {view === "home" ? (
-          <Feed posts={posts} comments={comments} postStats={postStats} busy={busy} react={react} addComment={addComment} commentDrafts={commentDrafts} setCommentDrafts={setCommentDrafts} />
+          <Feed posts={posts} comments={comments} postStats={postStats} busy={busy} react={react} addComment={addComment} editPost={editPost} editComment={editComment} activeProfileId={activeProfileId} commentDrafts={commentDrafts} setCommentDrafts={setCommentDrafts} />
         ) : null}
 
         {view === "ranking" ? (
@@ -1162,6 +1232,9 @@ function Feed({
   busy,
   react,
   addComment,
+  editPost,
+  editComment,
+  activeProfileId,
   commentDrafts,
   setCommentDrafts,
 }: {
@@ -1171,6 +1244,9 @@ function Feed({
   busy: string;
   react: (postId: string, reaction: "slap" | "mic") => void;
   addComment: (postId: string, replyToId?: string) => Promise<boolean>;
+  editPost: (postId: string, body: string) => Promise<boolean>;
+  editComment: (commentId: string, body: string) => Promise<boolean>;
+  activeProfileId: string;
   commentDrafts: Record<string, string>;
   setCommentDrafts: Dispatch<SetStateAction<Record<string, string>>>;
 }) {
@@ -1178,7 +1254,26 @@ function Feed({
   const [shareMenuPostId, setShareMenuPostId] = useState("");
   const [copiedPostId, setCopiedPostId] = useState("");
   const [replyTargets, setReplyTargets] = useState<Record<string, Comment | null>>({});
+  const [editTarget, setEditTarget] = useState<{
+    kind: "post" | "comment";
+    id: string;
+    body: string;
+  } | null>(null);
+  const [editDraft, setEditDraft] = useState("");
   const commentInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  function openEditor(kind: "post" | "comment", id: string, body: string) {
+    setEditTarget({ kind, id, body });
+    setEditDraft(body);
+  }
+
+  async function saveEdit() {
+    if (!editTarget || (editTarget.kind === "comment" && !editDraft.trim())) return;
+    const saved = editTarget.kind === "post"
+      ? await editPost(editTarget.id, editDraft)
+      : await editComment(editTarget.id, editDraft);
+    if (saved) setEditTarget(null);
+  }
 
   function cancelReply(postId: string) {
     const replyTo = replyTargets[postId];
@@ -1237,8 +1332,13 @@ function Feed({
               <Avatar profile={post.profiles} />
               <div>
                 <strong>{cleanHandle(post.profiles)}</strong>
-                <small>{post.profiles?.display_name || "Bantrboks user"} • {formatAge(post.created_at)}</small>
+                <small>{post.profiles?.display_name || "Bantrboks user"} • {formatAge(post.created_at)}{post.edited_at ? " • Edited" : ""}</small>
               </div>
+              {post.author_id === activeProfileId ? (
+                <button className="bb-inline-edit" type="button" onClick={() => openEditor("post", post.id, post.body)}>
+                  Edit
+                </button>
+              ) : null}
             </header>
             <span className="bb-tag">{roomHash}</span>
             {postText ? <p className="bb-post-body"><LinkifiedText text={postText} /></p> : null}
@@ -1312,14 +1412,22 @@ function Feed({
                   <p>
                     {parentHandle ? <small>↳ Replying to {parentHandle}</small> : null}
                     <strong>{cleanHandle(comment.profiles)}</strong> {displayBody}
+                    {comment.edited_at ? <small className="bb-edited-label">Edited</small> : null}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => focusComment(post.id, comment)}
-                    aria-label={`Reply to ${cleanHandle(comment.profiles)}`}
-                  >
-                    Reply
-                  </button>
+                  <div className="bb-comment-actions">
+                    <button
+                      type="button"
+                      onClick={() => focusComment(post.id, comment)}
+                      aria-label={`Reply to ${cleanHandle(comment.profiles)}`}
+                    >
+                      Reply
+                    </button>
+                    {comment.author_id === activeProfileId ? (
+                      <button type="button" onClick={() => openEditor("comment", comment.id, displayBody)}>
+                        Edit
+                      </button>
+                    ) : null}
+                  </div>
                 </article>
               ))}
             </div>
@@ -1356,6 +1464,32 @@ function Feed({
           </article>
         );
       })}
+      {editTarget ? (
+        <div className="bb-edit-overlay" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setEditTarget(null);
+        }}>
+          <section className="bb-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="bb-edit-title">
+            <h2 id="bb-edit-title">Edit {editTarget.kind === "post" ? "bantr" : "comment"}</h2>
+            <textarea
+              value={editDraft}
+              onChange={(event) => setEditDraft(event.target.value)}
+              maxLength={editTarget.kind === "post" ? 100 : 240}
+              autoFocus
+            />
+            <small>{editDraft.length}/{editTarget.kind === "post" ? 100 : 240}</small>
+            <div className="bb-edit-dialog-actions">
+              <button type="button" className="bb-edit-cancel" onClick={() => setEditTarget(null)}>Cancel</button>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={(editTarget.kind === "comment" && !editDraft.trim()) || busy === `edit-${editTarget.kind}-${editTarget.id}`}
+              >
+                {busy === `edit-${editTarget.kind}-${editTarget.id}` ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
