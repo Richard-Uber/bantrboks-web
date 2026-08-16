@@ -72,7 +72,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const post = await getSharedPost(id);
-  const title = `${postAuthor(post)} on Bantrboks`;
+  const title = "Drop just hit";
   const description = postDescription(post);
   const image = post?.media_url || await linkedPreviewImage(post) || fallbackImage;
   const canonical = `/post/${encodeURIComponent(id)}`;
