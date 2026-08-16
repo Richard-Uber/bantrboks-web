@@ -14,8 +14,12 @@ type SharedPost = {
   } | null;
 };
 
-const fallbackImage = "/brand/bantrboks-approved-website-landing.webp";
 const previewTimeoutMs = 4500;
+
+function isImageUrl(value: string | null | undefined) {
+  if (!value) return false;
+  return /\.(avif|gif|jpe?g|png|webp)(?:$|[?#])/i.test(value);
+}
 
 async function getSharedPost(id: string) {
   const { data } = await supabase
@@ -34,7 +38,7 @@ function postAuthor(post: SharedPost | null) {
 
 function postDescription(post: SharedPost | null) {
   const text = post?.body?.replace(/https?:\/\/[^\s<]+/gi, "").replace(/\s+/g, " ").trim();
-  if (!text) return "View this take in the Springboks vs All Blacks Bantrboks room.";
+  if (!text) return "";
   return text.length > 180 ? `${text.slice(0, 177)}…` : text;
 }
 
@@ -74,7 +78,10 @@ export async function generateMetadata({
   const post = await getSharedPost(id);
   const title = "Drop just hit";
   const description = postDescription(post);
-  const image = post?.media_url || await linkedPreviewImage(post) || fallbackImage;
+  const image =
+    (isImageUrl(post?.media_url) ? post?.media_url : "") ||
+    await linkedPreviewImage(post) ||
+    `/api/post-preview/${encodeURIComponent(id)}`;
   const canonical = `/post/${encodeURIComponent(id)}`;
 
   return {
@@ -129,7 +136,7 @@ export default async function SharedPostPage({
             </div>
           </div>
           <b className="shared-post-tag">#springboksvsallblacks</b>
-          <p>{visibleBody}</p>
+          {visibleBody ? <p>{visibleBody}</p> : null}
           {post.media_url ? (
             linkedUrl ? (
               <a className="shared-post-source" href={linkedUrl} target="_blank" rel="noopener noreferrer" aria-label="Open the original content">
