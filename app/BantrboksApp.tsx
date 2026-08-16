@@ -346,24 +346,38 @@ function sharePostToX(post: Post) {
 
 async function sharePostToInstagram(post: Post) {
   const url = sharedPostUrl(post.id);
-  const text = `Drop just hit\n\n${url}`;
-
-  if (navigator.share && window.matchMedia("(pointer: coarse)").matches) {
-    await navigator.share({
-      title: "Drop just hit",
-      text: "Drop just hit",
-      url,
-    });
-    return "shared" as const;
-  }
+  const storyUrl = new URL(`/api/story-preview/${encodeURIComponent(post.id)}`, window.location.origin).href;
 
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-  } else {
-    await copyPostLink(post.id);
+    await navigator.clipboard.writeText(url);
   }
+
+  try {
+    const response = await fetch(storyUrl);
+    if (!response.ok) throw new Error("Story preview could not be created");
+    const blob = await response.blob();
+    const file = new File([blob], `bantrboks-story-${post.id}.png`, { type: "image/png" });
+
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({
+        title: "Drop just hit",
+        text: "Drop just hit",
+        files: [file],
+      });
+      return "shared" as const;
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancelled" as const;
+  }
+
+  const download = document.createElement("a");
+  download.href = storyUrl;
+  download.download = `bantrboks-story-${post.id}.png`;
+  document.body.appendChild(download);
+  download.click();
+  download.remove();
   window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
-  return "copied" as const;
+  return "downloaded" as const;
 }
 
 export function BantrboksApp({ session }: { session: Session }) {
@@ -1278,13 +1292,13 @@ function Feed({
                   type="button"
                   onClick={async () => {
                     const result = await sharePostToInstagram(post);
-                    if (result === "copied") {
+                    if (result === "downloaded") {
                       setCopiedPostId(post.id);
                       window.setTimeout(() => setCopiedPostId(""), 2200);
                     }
                   }}
                 >
-                  {copiedPostId === post.id ? "✓ Copied for Instagram" : "Share to Instagram"}
+                  {copiedPostId === post.id ? "✓ Story saved · link copied" : "Share to Instagram Story"}
                 </button>
               </div>
             ) : null}
@@ -1345,4 +1359,3 @@ function Feed({
     </section>
   );
 }
-
