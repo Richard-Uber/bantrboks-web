@@ -126,6 +126,24 @@ function normaliseHandle(value: string) {
     .toLowerCase();
 }
 
+function errorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return "Upload failed.";
+}
+
+function errorCode(error: unknown) {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === "string" && code) return code.slice(0, 80);
+  }
+  if (error instanceof Error && error.name) return error.name.slice(0, 80);
+  return "unknown";
+}
+
 function firstPostUrl(body: string) {
   const match = body.match(/https?:\/\/[^\s<]+/i);
   return match?.[0]?.replace(/[),.!?;:'\"]+$/, "") ?? "";
@@ -410,6 +428,7 @@ export function BantrboksApp({ session }: { session: Session }) {
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState("");
   const [status, setStatus] = useState("");
+  const [composerStatus, setComposerStatus] = useState("");
   const [chatDraft, setChatDraft] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
@@ -704,11 +723,12 @@ export function BantrboksApp({ session }: { session: Session }) {
     setCreateMediaPreview("");
     setCreateMediaFile(null);
     setNewPost("");
+    setComposerStatus("");
   }
 
   async function uploadMediaFile(file: File, folder: string) {
     const safeExt = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-    const path = `${folder}/${activeProfileId}/${Date.now()}.${safeExt}`;
+    const path = `${folder}/${session.user.id}/${activeProfileId}/${Date.now()}.${safeExt}`;
     const { error } = await supabase.storage.from("bantrbox-media").upload(path, file, {
       upsert: true,
       contentType: file.type || undefined,
@@ -783,11 +803,21 @@ export function BantrboksApp({ session }: { session: Session }) {
     event.preventDefault();
     const body = newPost.trim();
     if (!body && !createMediaFile) {
-      setStatus("Add text or media before posting.");
+      const message = "Add text or media before posting.";
+      setStatus(message);
+      setComposerStatus(message);
       return;
     }
     setBusy("post");
     setStatus("");
+    setComposerStatus("");
+    pushBantrboksEvent("post_attempt", {
+      has_text: Boolean(body),
+      has_media: Boolean(createMediaFile),
+      managed_profile: activeProfileId !== session.user.id,
+    });
+
+    let failureStage = "post_lookup";
 
     try {
       const { count: existingPostCount, error: countError } = await supabase
@@ -795,7 +825,9 @@ export function BantrboksApp({ session }: { session: Session }) {
         .select("id", { count: "exact", head: true })
         .eq("author_id", activeProfileId);
 
+      failureStage = "media_upload";
       const mediaUrl = createMediaFile ? await uploadMediaFile(createMediaFile, "bantrboks-posts") : null;
+      failureStage = "post_insert";
       const postId = String(Date.now());
       const { error } = await supabase.from("posts").insert({
         id: postId,
@@ -812,11 +844,20 @@ export function BantrboksApp({ session }: { session: Session }) {
       }
 
       clearCreateDraft();
+      setComposerStatus("");
       setStatus("Bantr posted to the Boks vs ABs room.");
       setView("home");
       loadData();
     } catch (error) {
-      setStatus(`Bantr did not post: ${error instanceof Error ? error.message : "Upload failed."}`);
+      const message = `Bantr did not post: ${errorMessage(error)}`;
+      setStatus(message);
+      setComposerStatus(message);
+      pushBantrboksEvent("post_failed", {
+        failure_stage: failureStage,
+        failure_code: errorCode(error),
+        has_media: Boolean(createMediaFile),
+        managed_profile: activeProfileId !== session.user.id,
+      });
     } finally {
       setBusy("");
     }
@@ -1130,6 +1171,7 @@ export function BantrboksApp({ session }: { session: Session }) {
                 </button>
               </div>
             ) : null}
+            {composerStatus ? <p className="bb-create-status" role="alert">{composerStatus}</p> : null}
             <button className="bb-primary" type="submit" disabled={busy === "post"}>
               {busy === "post" ? "Posting..." : "Post"}
             </button>

@@ -4,6 +4,7 @@ export type BantrboksEventName =
   | "room_view"
   | "choose_side"
   | "post_attempt"
+  | "post_failed"
   | "sign_up"
   | "first_post"
   | "reply_created"

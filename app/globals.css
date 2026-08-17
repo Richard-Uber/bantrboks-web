@@ -860,6 +860,17 @@
   border-color: var(--bb-cyan);
 }
 
+.bb-create-status {
+  margin: 0;
+  padding: 12px 16px;
+  border: 2px solid #ff6161;
+  border-radius: 12px;
+  color: #fff;
+  background: rgba(122, 18, 18, 0.72);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
 .bb-secondary.danger {
   border-color: #ff6161;
   color: #ff9b9b;
