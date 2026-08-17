@@ -23,7 +23,15 @@ function normaliseHandle(value: string) {
     .toLowerCase();
 }
 
-export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMode }) {
+export function BantrboksAuth({
+  initialMode = "create",
+  socialFirst = false,
+  collapsedManual = false,
+}: {
+  initialMode?: AuthMode;
+  socialFirst?: boolean;
+  collapsedManual?: boolean;
+}) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [displayName, setDisplayName] = useState("");
   const [handle, setHandle] = useState("");
@@ -32,6 +40,7 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [manualOpen, setManualOpen] = useState(!collapsedManual);
 
   const cleanHandle = useMemo(() => normaliseHandle(handle), [handle]);
 
@@ -335,76 +344,10 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
     }
   }
 
-  return (
-    <form className="mobile-login" aria-label="Bantrbox account access through Bantrboks" onSubmit={submit}>
-      <div className="mobile-auth-tabs" aria-label="Account mode">
-        <button
-          className={mode === "create" ? "is-active" : undefined}
-          type="button"
-          onClick={() => switchMode("create")}
-          disabled={busy}
-        >
-          Create
-        </button>
-        <button
-          className={mode === "signin" ? "is-active" : undefined}
-          type="button"
-          onClick={() => switchMode("signin")}
-          disabled={busy}
-        >
-          Sign in
-        </button>
-      </div>
-
-      {mode === "create" ? (
-        <>
-          <p className="mobile-auth-context">
-            Create your permanent Bantrbox account and join the Bantrboks Springboks vs All Blacks room.
-          </p>
-          <input
-            type="text"
-            placeholder="Display name"
-            aria-label="Display name"
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            autoComplete="name"
-          />
-          <input
-            type="text"
-            placeholder="Handle"
-            aria-label="Handle"
-            value={handle}
-            onChange={(event) => setHandle(event.target.value)}
-            autoComplete="nickname"
-          />
-        </>
-      ) : null}
-
-      <input
-        type="email"
-        placeholder="Email"
-        aria-label="Email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        autoComplete="email"
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        aria-label="Password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        autoComplete={mode === "create" ? "new-password" : "current-password"}
-      />
-
-      {error ? <p className="mobile-login-status error">{error}</p> : null}
-      {message ? <p className="mobile-login-status">{message}</p> : null}
-
-      <button className="mobile-auth-primary" type="submit" disabled={busy}>
-        {busy ? (mode === "create" ? "Creating..." : "Signing in...") : mode === "create" ? "Create Bantrbox Account" : "Sign in"}
-      </button>
+  const socialAccess = (
+    <>
       <div className="mobile-auth-divider" aria-hidden="true">
-        <span>or</span>
+        <span>{socialFirst ? "Quick sign in" : "or"}</span>
       </div>
       <div className="mobile-auth-providers" aria-label="Social account access">
         <button
@@ -422,17 +365,6 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
           Continue with Google
         </button>
         <button
-          className="mobile-auth-provider mobile-auth-facebook"
-          type="button"
-          onClick={() => continueWithOAuth("facebook")}
-          disabled={busy}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="currentColor" d="M14.1 22v-9h3l.45-3.5H14.1V7.27c0-1.01.28-1.7 1.73-1.7h1.85V2.45c-.32-.04-1.42-.14-2.7-.14-2.67 0-4.5 1.63-4.5 4.63V9.5H7.46V13h3.02v9h3.62Z" />
-          </svg>
-          Continue with Facebook
-        </button>
-        <button
           className="mobile-auth-provider mobile-auth-apple"
           type="button"
           onClick={() => continueWithOAuth("apple")}
@@ -443,18 +375,82 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
           </svg>
           Continue with Apple
         </button>
+        <button
+          className="mobile-auth-provider mobile-auth-facebook"
+          type="button"
+          onClick={() => continueWithOAuth("facebook")}
+          disabled={busy}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M14.1 22v-9h3l.45-3.5H14.1V7.27c0-1.01.28-1.7 1.73-1.7h1.85V2.45c-.32-.04-1.42-.14-2.7-.14-2.67 0-4.5 1.63-4.5 4.63V9.5H7.46V13h3.02v9h3.62Z" />
+          </svg>
+          Continue with Facebook
+        </button>
       </div>
-      <button
-        className="mobile-auth-secondary"
-        type="button"
-        onClick={() => switchMode(mode === "create" ? "signin" : "create")}
-        disabled={busy}
-      >
-        {mode === "create" ? "I already have an account" : "Create a new account"}
-      </button>
-      <button className="mobile-auth-link" type="button" onClick={sendPasswordReset} disabled={busy}>
-        Trouble signing in?
-      </button>
+    </>
+  );
+
+  return (
+    <form className="mobile-login" aria-label="Bantrbox account access through Bantrboks" onSubmit={submit}>
+      {socialFirst ? socialAccess : null}
+      {error ? <p className="mobile-login-status error">{error}</p> : null}
+      {message ? <p className="mobile-login-status">{message}</p> : null}
+
+      {collapsedManual && !manualOpen ? (
+        <button
+          className="mobile-auth-secondary mobile-auth-email-toggle"
+          type="button"
+          onClick={() => setManualOpen(true)}
+          disabled={busy}
+        >
+          Continue with email
+        </button>
+      ) : (
+        <>
+          <div className="mobile-auth-tabs" aria-label="Account mode">
+            <button
+              className={mode === "create" ? "is-active" : undefined}
+              type="button"
+              onClick={() => switchMode("create")}
+              disabled={busy}
+            >
+              Create
+            </button>
+            <button
+              className={mode === "signin" ? "is-active" : undefined}
+              type="button"
+              onClick={() => switchMode("signin")}
+              disabled={busy}
+            >
+              Sign in
+            </button>
+          </div>
+
+          {mode === "create" ? (
+            <>
+              <p className="mobile-auth-context">
+                Create your permanent Bantrbox account and join the Bantrboks Springboks vs All Blacks room.
+              </p>
+              <input type="text" placeholder="Display name" aria-label="Display name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} autoComplete="name" />
+              <input type="text" placeholder="Handle" aria-label="Handle" value={handle} onChange={(event) => setHandle(event.target.value)} autoComplete="nickname" />
+            </>
+          ) : null}
+
+          <input type="email" placeholder="Email" aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
+          <input type="password" placeholder="Password" aria-label="Password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "create" ? "new-password" : "current-password"} />
+
+          <button className="mobile-auth-primary" type="submit" disabled={busy}>
+            {busy ? (mode === "create" ? "Creating..." : "Signing in...") : mode === "create" ? "Create Bantrbox Account" : "Sign in"}
+          </button>
+          {!socialFirst ? socialAccess : null}
+          <button className="mobile-auth-secondary" type="button" onClick={() => switchMode(mode === "create" ? "signin" : "create")} disabled={busy}>
+            {mode === "create" ? "I already have an account" : "Create a new account"}
+          </button>
+          <button className="mobile-auth-link" type="button" onClick={sendPasswordReset} disabled={busy}>
+            Trouble signing in?
+          </button>
+        </>
+      )}
     </form>
   );
 }

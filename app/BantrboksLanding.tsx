@@ -2,11 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { BantrboksAuth } from "./BantrboksAuth";
-import { BantrboksTagline } from "./BantrboksTagline";
 import { captureBantrboksCampaignAttribution, pushBantrboksEvent } from "./bantrboksAnalytics";
+import { supabase } from "./supabase";
 
 const appStoreUrl = "https://apps.apple.com/app/bantrbox/id6791587145";
 const playStoreUrl = "https://play.google.com/store/apps/details?id=com.bantrbox.app";
+
+type LandingPost = {
+  id: string;
+  body: string;
+  media_url: string | null;
+  created_at: string;
+  profiles: {
+    handle: string | null;
+    display_name: string | null;
+    avatar: string | null;
+  } | null;
+};
+
+type Side = "springboks" | "all_blacks";
+
+function postText(body: string) {
+  const withoutLinks = body.replace(/https?:\/\/\S+/gi, "").replace(/\s+/g, " ").trim();
+  return withoutLinks || "A new rivalry drop just hit.";
+}
+
+function profileInitials(post: LandingPost) {
+  const label = post.profiles?.display_name || post.profiles?.handle || "BB";
+  return label.slice(0, 2).toUpperCase();
+}
+
+function isVideo(url: string) {
+  return /\.(mp4|mov|m4v|webm)(?:$|\?)/i.test(url);
+}
 
 const campaignHotspots = [
   { label: "Log in", href: "#account", className: "campaign-nav-login" },
@@ -22,10 +50,40 @@ const campaignHotspots = [
 
 export function BantrboksLanding() {
   const [desktopLoginOpen, setDesktopLoginOpen] = useState(false);
+  const [selectedSide, setSelectedSide] = useState<Side | null>(null);
+  const [livePosts, setLivePosts] = useState<LandingPost[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
 
   useEffect(() => {
     captureBantrboksCampaignAttribution();
+
+    let cancelled = false;
+    supabase
+      .from("posts")
+      .select("id, body, media_url, created_at, profiles(handle, display_name, avatar)")
+      .overlaps("tags", ["Springboks vs All Blacks", "springboksvsallblacks"])
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setLivePosts((data || []) as unknown as LandingPost[]);
+        setFeedLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  function chooseSide(side: Side) {
+    setSelectedSide(side);
+    pushBantrboksEvent("choose_side", { side });
+  }
+
+  function showAccountOptions() {
+    document.getElementById("mobile-account")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   useEffect(() => {
     if (!desktopLoginOpen) return;
@@ -103,7 +161,29 @@ export function BantrboksLanding() {
           </a>
         </header>
 
-        <BantrboksTagline />
+        <section className="mobile-rivalry-intro">
+          <p className="mobile-live-kicker"><span aria-hidden="true" /> Rivalry room live</p>
+          <h1>Springboks or All Blacks? Pick your side.</h1>
+          <p>The rivalry is live. Read the latest predictions, challenge a supporter and drop your own take.</p>
+          <div className="mobile-side-choice" aria-label="Pick your side">
+            <button
+              className={selectedSide === "springboks" ? "is-selected springboks" : "springboks"}
+              type="button"
+              aria-pressed={selectedSide === "springboks"}
+              onClick={() => chooseSide("springboks")}
+            >
+              I’m backing the Springboks
+            </button>
+            <button
+              className={selectedSide === "all_blacks" ? "is-selected all-blacks" : "all-blacks"}
+              type="button"
+              aria-pressed={selectedSide === "all_blacks"}
+              onClick={() => chooseSide("all_blacks")}
+            >
+              I’m backing the All Blacks
+            </button>
+          </div>
+        </section>
 
         <section className="mobile-room-entry" aria-label="Bantrboks room">
           <img
@@ -114,7 +194,53 @@ export function BantrboksLanding() {
           />
         </section>
 
-        <BantrboksAuth />
+        <section className="mobile-live-feed" aria-labelledby="mobile-live-feed-title">
+          <div className="mobile-live-feed-heading">
+            <div>
+              <span>Live from the room</span>
+              <h2 id="mobile-live-feed-title">Latest rivalry takes</h2>
+            </div>
+            <span className="mobile-live-dot">Live</span>
+          </div>
+          {feedLoading ? (
+            <div className="mobile-live-loading">Loading the latest takes…</div>
+          ) : livePosts.length ? (
+            <div className="mobile-live-posts">
+              {livePosts.map((post) => (
+                <a className="mobile-live-post" href={`/post/${post.id}`} key={post.id}>
+                  <div className="mobile-live-post-author">
+                    {post.profiles?.avatar?.startsWith("http") ? (
+                      <img src={post.profiles.avatar} alt="" />
+                    ) : (
+                      <span>{profileInitials(post)}</span>
+                    )}
+                    <strong>@{post.profiles?.handle || "bantrboks"}</strong>
+                  </div>
+                  <p>{postText(post.body)}</p>
+                  {post.media_url ? (
+                    isVideo(post.media_url) ? (
+                      <video src={post.media_url} muted playsInline preload="metadata" />
+                    ) : (
+                      <img className="mobile-live-post-media" src={post.media_url} alt="" loading="lazy" />
+                    )
+                  ) : null}
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="mobile-live-loading">The room is warming up. Be first to drop a take.</div>
+          )}
+        </section>
+
+        <button className="mobile-post-take" type="button" onClick={showAccountOptions}>
+          Post your take
+        </button>
+
+        <section className="mobile-account-section" id="mobile-account" aria-label="Join Bantrboks">
+          <h2>Join the rivalry</h2>
+          <p>Sign in to post, reply or react. Reading the live feed is always open.</p>
+          <BantrboksAuth socialFirst collapsedManual />
+        </section>
 
         <section className="mobile-hero">
           <div className="mobile-actions">
