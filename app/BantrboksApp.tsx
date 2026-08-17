@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, Dispatch, FormEvent, ReactNode, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { RealtimeChannel, Session } from "@supabase/supabase-js";
+import type { RealtimeChannel, Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { BantrboksTagline } from "./BantrboksTagline";
 import { pushBantrboksEvent, pushBantrboksEventOncePerAccount } from "./bantrboksAnalytics";
@@ -124,6 +124,73 @@ function normaliseHandle(value: string) {
     .replace(/^@+/, "")
     .replace(/[^a-zA-Z0-9_]/g, "")
     .toLowerCase();
+}
+
+async function ensurePersonalProfile(user: User) {
+  const { error: accountError } = await supabase.rpc("ensure_personal_account");
+  if (accountError && accountError.code !== "PGRST202") throw accountError;
+
+  const { data: existingProfile, error: lookupError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (existingProfile?.id) return user.id;
+  if (!user.email) throw new Error("Your login does not have an email address for its Bantrbox profile.");
+
+  const metadata = user.user_metadata ?? {};
+  const emailHandle = normaliseHandle(user.email.split("@")[0] ?? "");
+  const baseHandle = normaliseHandle(
+    String(metadata.handle || metadata.username || metadata.preferred_username || emailHandle || "bantrbox")
+  ).slice(0, 30);
+  const { data: conflictingProfile, error: handleLookupError } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("handle", baseHandle)
+    .neq("id", user.id)
+    .maybeSingle();
+  if (handleLookupError) throw handleLookupError;
+
+  const uniqueSuffix = user.id.replace(/-/g, "").slice(0, 6);
+  const profileHandle = conflictingProfile
+    ? `${baseHandle.slice(0, 23)}_${uniqueSuffix}`
+    : baseHandle;
+  const profileName = String(
+    metadata.display_name || metadata.full_name || metadata.name || profileHandle
+  ).trim();
+  const metadataAvatar = String(metadata.avatar_url || metadata.picture || "").trim();
+  const now = new Date().toISOString();
+  const { error: profileError } = await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      email: user.email.trim().toLowerCase(),
+      handle: profileHandle,
+      display_name: profileName || profileHandle,
+      avatar: metadataAvatar || profileHandle.slice(0, 2).toUpperCase(),
+      location: "",
+      bio: "",
+      bantr_feed: [roomSlug],
+      permission_preferences: {
+        product: "bantrbox",
+        signup_source: "bantrboks",
+        acquisition_campaign: "springboks-all-blacks-tour",
+        created_via: "bantrboks.com",
+        default_room: roomSlug,
+        current_room: roomSlug,
+        legal_scope: "bantrbox-platform",
+      },
+      terms_accepted_at: now,
+      privacy_accepted_at: now,
+      legal_version: "bantrbox-platform-2026-08",
+    },
+    { onConflict: "id" }
+  );
+  if (profileError) throw profileError;
+
+  const { error: membershipError } = await supabase.rpc("ensure_personal_account");
+  if (membershipError && membershipError.code !== "PGRST202") throw membershipError;
+  return user.id;
 }
 
 function errorMessage(error: unknown) {
@@ -449,7 +516,13 @@ export function BantrboksApp({ session }: { session: Session }) {
   }, []);
 
   const loadAccounts = useCallback(async () => {
-    await supabase.rpc("ensure_personal_account");
+    try {
+      await ensurePersonalProfile(session.user);
+    } catch (error) {
+      const message = `Your posting profile could not be prepared: ${errorMessage(error)}`;
+      setStatus(message);
+      setComposerStatus(message);
+    }
 
     const { data: membershipRows, error: membershipError } = await supabase
       .from("account_memberships")
@@ -491,7 +564,7 @@ export function BantrboksApp({ session }: { session: Session }) {
       ? savedProfileId!
       : nextAccounts[0]?.profile.id ?? session.user.id;
     setActiveProfileId(nextProfileId);
-  }, [session.user.id]);
+  }, [session.user]);
 
   const loadData = useCallback(async () => {
     const [profileRes, postsRes, commentsRes, reactionsRes, notificationsRes] =
@@ -726,9 +799,9 @@ export function BantrboksApp({ session }: { session: Session }) {
     setComposerStatus("");
   }
 
-  async function uploadMediaFile(file: File, folder: string) {
+  async function uploadMediaFile(file: File, folder: string, profileId = activeProfileId) {
     const safeExt = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-    const path = `${folder}/${session.user.id}/${activeProfileId}/${Date.now()}.${safeExt}`;
+    const path = `${folder}/${session.user.id}/${profileId}/${Date.now()}.${safeExt}`;
     const { error } = await supabase.storage.from("bantrbox-media").upload(path, file, {
       upsert: true,
       contentType: file.type || undefined,
@@ -811,27 +884,54 @@ export function BantrboksApp({ session }: { session: Session }) {
     setBusy("post");
     setStatus("");
     setComposerStatus("");
-    pushBantrboksEvent("post_attempt", {
-      has_text: Boolean(body),
-      has_media: Boolean(createMediaFile),
-      managed_profile: activeProfileId !== session.user.id,
-    });
-
-    let failureStage = "post_lookup";
+    let postingProfileId = activeProfileId;
+    let failureStage = "profile_check";
 
     try {
+      if (postingProfileId === session.user.id) {
+        postingProfileId = await ensurePersonalProfile(session.user);
+      } else {
+        const [{ data: selectedProfile, error: profileLookupError }, { data: membership, error: membershipLookupError }] =
+          await Promise.all([
+            supabase.from("profiles").select("id").eq("id", postingProfileId).maybeSingle(),
+            supabase
+              .from("account_memberships")
+              .select("profile_id")
+              .eq("user_id", session.user.id)
+              .eq("profile_id", postingProfileId)
+              .maybeSingle(),
+          ]);
+        if (profileLookupError) throw profileLookupError;
+        if (membershipLookupError) throw membershipLookupError;
+        if (!selectedProfile?.id || !membership?.profile_id) {
+          postingProfileId = await ensurePersonalProfile(session.user);
+          setActiveProfileId(postingProfileId);
+          window.localStorage.setItem(`bantrbox-active-profile:${session.user.id}`, postingProfileId);
+          await loadAccounts();
+        }
+      }
+
+      pushBantrboksEvent("post_attempt", {
+        has_text: Boolean(body),
+        has_media: Boolean(createMediaFile),
+        managed_profile: postingProfileId !== session.user.id,
+      });
+
+      failureStage = "post_lookup";
       const { count: existingPostCount, error: countError } = await supabase
         .from("posts")
         .select("id", { count: "exact", head: true })
-        .eq("author_id", activeProfileId);
+        .eq("author_id", postingProfileId);
 
       failureStage = "media_upload";
-      const mediaUrl = createMediaFile ? await uploadMediaFile(createMediaFile, "bantrboks-posts") : null;
+      const mediaUrl = createMediaFile
+        ? await uploadMediaFile(createMediaFile, "bantrboks-posts", postingProfileId)
+        : null;
       failureStage = "post_insert";
       const postId = String(Date.now());
       const { error } = await supabase.from("posts").insert({
         id: postId,
-        author_id: activeProfileId,
+        author_id: postingProfileId,
         body,
         tags: [...roomTags, "bantrbox"],
         media_url: mediaUrl,
@@ -840,7 +940,7 @@ export function BantrboksApp({ session }: { session: Session }) {
       if (error) throw error;
 
       if (!countError && existingPostCount === 0) {
-        pushBantrboksEventOncePerAccount("first_post", activeProfileId, { post_id: postId });
+        pushBantrboksEventOncePerAccount("first_post", postingProfileId, { post_id: postId });
       }
 
       clearCreateDraft();
@@ -856,7 +956,7 @@ export function BantrboksApp({ session }: { session: Session }) {
         failure_stage: failureStage,
         failure_code: errorCode(error),
         has_media: Boolean(createMediaFile),
-        managed_profile: activeProfileId !== session.user.id,
+        managed_profile: postingProfileId !== session.user.id,
       });
     } finally {
       setBusy("");
