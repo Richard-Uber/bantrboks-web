@@ -498,7 +498,6 @@ export function BantrboksApp({ session }: { session: Session }) {
   const [composerStatus, setComposerStatus] = useState("");
   const [chatDraft, setChatDraft] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [createMediaFile, setCreateMediaFile] = useState<File | null>(null);
   const [createMediaPreview, setCreateMediaPreview] = useState("");
   const chatChannel = useRef<RealtimeChannel | null>(null);
@@ -797,6 +796,13 @@ export function BantrboksApp({ session }: { session: Session }) {
     setCreateMediaFile(null);
     setNewPost("");
     setComposerStatus("");
+  }
+
+  function discardCreateDraft() {
+    clearCreateDraft();
+    setStatus("");
+    setView("home");
+    requestAnimationFrame(() => viewbar.current?.scrollIntoView({ block: "start" }));
   }
 
   async function uploadMediaFile(file: File, folder: string, profileId = activeProfileId) {
@@ -1125,7 +1131,7 @@ export function BantrboksApp({ session }: { session: Session }) {
   }
 
   return (
-    <main className={`bb-app${isComposerFocused ? " is-composing" : ""}`}>
+    <main className={`bb-app${view === "create" ? " is-composing" : ""}`}>
       <header className="bb-app-top">
         <img className="bb-app-logo" src="/bantrboks-logo.webp" alt="Bantrboks" />
         <button
@@ -1133,6 +1139,7 @@ export function BantrboksApp({ session }: { session: Session }) {
           type="button"
           aria-label={`Account menu. Currently ${cleanHandle(profile)}`}
           aria-expanded={accountMenuOpen}
+          disabled={view === "create"}
           onClick={() => setAccountMenuOpen((open) => !open)}
         >
           <Avatar profile={profile} />
@@ -1234,15 +1241,13 @@ export function BantrboksApp({ session }: { session: Session }) {
         ) : null}
 
         {view === "create" ? (
-          <form className="bb-create" onSubmit={createPost}>
+          <form id="bantrboks-create-form" className="bb-create" onSubmit={createPost}>
             <label htmlFor="bantr-text">Drop a Boks vs ABs bantr</label>
             <textarea
               id="bantr-text"
               value={newPost}
               maxLength={280}
               onChange={(event) => setNewPost(event.target.value)}
-              onFocus={() => setIsComposerFocused(true)}
-              onBlur={() => setIsComposerFocused(false)}
               placeholder="What do you want to bantr about?"
             />
             <div className="bb-create-meta">
@@ -1272,10 +1277,7 @@ export function BantrboksApp({ session }: { session: Session }) {
               </div>
             ) : null}
             {composerStatus ? <p className="bb-create-status" role="alert">{composerStatus}</p> : null}
-            <button className="bb-primary" type="submit" disabled={busy === "post"}>
-              {busy === "post" ? "Posting..." : "Post"}
-            </button>
-            <button className="bb-secondary danger" type="button" onClick={clearCreateDraft}>Discard post</button>
+            <button className="bb-secondary danger" type="button" onClick={discardCreateDraft} disabled={busy === "post"}>Discard post</button>
           </form>
         ) : null}
 
@@ -1384,16 +1386,24 @@ export function BantrboksApp({ session }: { session: Session }) {
         ) : null}
       </section>
 
-      <nav className="bb-bottom-nav" aria-label="Bantrboks navigation">
-        {navButton("home", "Home", "⌂")}
-        {navButton("ranking", "Ranking", "🏆")}
-        {navButton("create", "Create", "+")}
-        <button className={view === "notifications" ? "is-active" : undefined} onClick={() => setView("notifications")} type="button">
-          <span className="bb-nav-notification-icon" aria-hidden="true">●{unreadNotificationCount ? <b>{Math.min(unreadNotificationCount, 99)}</b> : null}</span>
-          Notifs
-        </button>
-        {navButton("chat", "Chat", "✉")}
-      </nav>
+      {view === "create" ? (
+        <div className="bb-create-submit-dock" role="region" aria-label="Post your take">
+          <button form="bantrboks-create-form" type="submit" disabled={busy === "post"}>
+            {busy === "post" ? "POSTING..." : "POST YOUR TAKE"}
+          </button>
+        </div>
+      ) : (
+        <nav className="bb-bottom-nav" aria-label="Bantrboks navigation">
+          {navButton("home", "Home", "⌂")}
+          {navButton("ranking", "Ranking", "🏆")}
+          {navButton("create", "Create", "+")}
+          <button className={view === "notifications" ? "is-active" : undefined} onClick={() => setView("notifications")} type="button">
+            <span className="bb-nav-notification-icon" aria-hidden="true">●{unreadNotificationCount ? <b>{Math.min(unreadNotificationCount, 99)}</b> : null}</span>
+            Notifs
+          </button>
+          {navButton("chat", "Chat", "✉")}
+        </nav>
+      )}
     </main>
   );
 }

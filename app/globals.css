@@ -1130,6 +1130,45 @@
   color: var(--bb-yellow);
 }
 
+.bb-create-submit-dock {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 30;
+  width: min(1120px, 100%);
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  border-top: 2px solid rgba(248, 246, 236, 0.15);
+  background: rgba(5, 5, 5, 0.96);
+  backdrop-filter: blur(16px);
+}
+
+.bb-create-submit-dock button {
+  width: 100%;
+  min-height: 68px;
+  border: 3px solid var(--bb-yellow);
+  border-radius: 999px;
+  color: #050505;
+  background: var(--bb-yellow);
+  box-shadow: 0 0 24px rgba(255, 214, 0, 0.34);
+  font: inherit;
+  font-size: clamp(18px, 3vw, 25px);
+  font-weight: 1000;
+  letter-spacing: 0.035em;
+  cursor: pointer;
+}
+
+.bb-create-submit-dock button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.bb-app.is-composing .bb-profile-dot,
+.bb-app.is-composing .bb-room-byline {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 @media (max-width: 720px) {
   .bb-account-backdrop {
     place-items: end center;
@@ -1247,11 +1286,15 @@
   }
 
   .bb-app.is-composing {
-    padding-bottom: 32px;
+    padding-bottom: 118px;
   }
 
-  .bb-app.is-composing .bb-bottom-nav {
-    display: none;
+  .bb-create-submit-dock {
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .bb-create-submit-dock button {
+    min-height: 62px;
   }
 
   .bb-post header strong,
