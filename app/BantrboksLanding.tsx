@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BantrboksAuth } from "./BantrboksAuth";
 import { BantrboksTagline } from "./BantrboksTagline";
+import { captureBantrboksCampaignAttribution, pushBantrboksEvent } from "./bantrboksAnalytics";
 
 const appStoreUrl = "https://apps.apple.com/app/bantrbox/id6791587145";
 const playStoreUrl = "https://play.google.com/store/apps/details?id=com.bantrbox.app";
@@ -21,6 +22,10 @@ const campaignHotspots = [
 
 export function BantrboksLanding() {
   const [desktopLoginOpen, setDesktopLoginOpen] = useState(false);
+
+  useEffect(() => {
+    captureBantrboksCampaignAttribution();
+  }, []);
 
   useEffect(() => {
     if (!desktopLoginOpen) return;
@@ -69,6 +74,11 @@ export function BantrboksLanding() {
             href={hotspot.href}
             onClick={hotspot.href === "#account" ? (event) => {
               event.preventDefault();
+              if (hotspot.className === "campaign-back-boks") {
+                pushBantrboksEvent("choose_side", { side: "springboks" });
+              } else if (hotspot.className === "campaign-back-abs") {
+                pushBantrboksEvent("choose_side", { side: "all_blacks" });
+              }
               setDesktopLoginOpen(true);
             } : undefined}
             rel={hotspot.external ? "noreferrer" : undefined}

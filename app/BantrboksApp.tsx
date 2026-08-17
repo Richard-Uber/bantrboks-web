@@ -4,6 +4,7 @@ import { ChangeEvent, Dispatch, FormEvent, ReactNode, SetStateAction, useCallbac
 import type { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { BantrboksTagline } from "./BantrboksTagline";
+import { pushBantrboksEvent, pushBantrboksEventOncePerAccount } from "./bantrboksAnalytics";
 
 type View = "home" | "ranking" | "create" | "notifications" | "chat" | "profile";
 type Profile = {
@@ -300,6 +301,7 @@ async function sharePost(post: Post) {
       text: "Drop just hit",
       url: postUrl,
     });
+    pushBantrboksEvent("post_shared", { post_id: post.id, share_channel: "native" });
     return true;
   } catch (error) {
     if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
@@ -315,6 +317,7 @@ async function copyPostLink(postId: string) {
   const url = sharedPostUrl(postId);
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(url);
+    pushBantrboksEvent("post_shared", { post_id: postId, share_channel: "copy_link" });
     return;
   }
 
@@ -327,6 +330,7 @@ async function copyPostLink(postId: string) {
   input.select();
   document.execCommand("copy");
   input.remove();
+  pushBantrboksEvent("post_shared", { post_id: postId, share_channel: "copy_link" });
 }
 
 function sharePostToFacebook(postId: string) {
@@ -336,6 +340,7 @@ function sharePostToFacebook(postId: string) {
     "bantrboks-facebook-share",
     "popup=yes,width=720,height=680,noopener,noreferrer"
   );
+  pushBantrboksEvent("post_shared", { post_id: postId, share_channel: "facebook" });
 }
 
 function sharePostToX(post: Post) {
@@ -344,6 +349,7 @@ function sharePostToX(post: Post) {
   intent.searchParams.set("url", url);
   intent.searchParams.set("text", "Drop just hit");
   window.open(intent.href, "bantrboks-x-share", "popup=yes,width=720,height=680,noopener,noreferrer");
+  pushBantrboksEvent("post_shared", { post_id: post.id, share_channel: "x" });
 }
 
 async function sharePostToInstagram(post: Post) {
@@ -366,6 +372,7 @@ async function sharePostToInstagram(post: Post) {
         text: "Drop just hit",
         files: [file],
       });
+      pushBantrboksEvent("post_shared", { post_id: post.id, share_channel: "instagram" });
       return "shared" as const;
     }
   } catch (error) {
@@ -378,6 +385,7 @@ async function sharePostToInstagram(post: Post) {
   document.body.appendChild(download);
   download.click();
   download.remove();
+  pushBantrboksEvent("post_shared", { post_id: post.id, share_channel: "instagram" });
   window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
   return "downloaded" as const;
 }
@@ -413,6 +421,13 @@ export function BantrboksApp({ session }: { session: Session }) {
   const cameraInput = useRef<HTMLInputElement | null>(null);
   const avatarInput = useRef<HTMLInputElement | null>(null);
   const viewbar = useRef<HTMLElement | null>(null);
+  const roomViewTracked = useRef(false);
+
+  useEffect(() => {
+    if (roomViewTracked.current) return;
+    roomViewTracked.current = true;
+    pushBantrboksEvent("room_view");
+  }, []);
 
   const loadAccounts = useCallback(async () => {
     await supabase.rpc("ensure_personal_account");
@@ -775,9 +790,15 @@ export function BantrboksApp({ session }: { session: Session }) {
     setStatus("");
 
     try {
+      const { count: existingPostCount, error: countError } = await supabase
+        .from("posts")
+        .select("id", { count: "exact", head: true })
+        .eq("author_id", activeProfileId);
+
       const mediaUrl = createMediaFile ? await uploadMediaFile(createMediaFile, "bantrboks-posts") : null;
+      const postId = String(Date.now());
       const { error } = await supabase.from("posts").insert({
-        id: String(Date.now()),
+        id: postId,
         author_id: activeProfileId,
         body,
         tags: [...roomTags, "bantrbox"],
@@ -785,6 +806,10 @@ export function BantrboksApp({ session }: { session: Session }) {
         visibility: "Everyone",
       });
       if (error) throw error;
+
+      if (!countError && existingPostCount === 0) {
+        pushBantrboksEventOncePerAccount("first_post", activeProfileId, { post_id: postId });
+      }
 
       clearCreateDraft();
       setStatus("Bantr posted to the Boks vs ABs room.");
@@ -817,6 +842,9 @@ export function BantrboksApp({ session }: { session: Session }) {
       setStatus(result.error.message);
       return;
     }
+    if (!existing) {
+      pushBantrboksEvent("reaction_added", { post_id: postId });
+    }
     loadData();
   }
 
@@ -825,8 +853,9 @@ export function BantrboksApp({ session }: { session: Session }) {
     if (!body) return false;
 
     setBusy(`comment-${postId}`);
+    const commentId = `${Date.now()}-${postId}`;
     const { error } = await supabase.from("comments").insert({
-      id: `${Date.now()}-${postId}`,
+      id: commentId,
       post_id: postId,
       author_id: activeProfileId,
       body: replyToId ? `[[reply:${replyToId}]]${body}` : body,
@@ -837,6 +866,8 @@ export function BantrboksApp({ session }: { session: Session }) {
       setStatus(error.message);
       return false;
     }
+
+    pushBantrboksEvent("reply_created", { post_id: postId });
 
     setCommentDrafts((current) => ({ ...current, [postId]: "" }));
     loadData();

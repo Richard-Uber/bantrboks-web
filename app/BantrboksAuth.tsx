@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { pushBantrboksEventOncePerAccount } from "./bantrboksAnalytics";
 
 type AuthMode = "create" | "signin";
 type OAuthProvider = "google" | "facebook" | "apple";
@@ -66,9 +67,9 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
     const profileName = String(
       meta.display_name || meta.full_name || displayName.trim() || profileHandle
     ).trim();
-    const { data: existingProfile } = await supabase
+    const { data: existingProfile, error: profileLookupError } = await supabase
       .from("profiles")
-      .select("avatar, bio")
+      .select("id, avatar, bio")
       .eq("id", activeUser.id)
       .maybeSingle();
     const avatar =
@@ -114,6 +115,10 @@ export function BantrboksAuth({ initialMode = "create" }: { initialMode?: AuthMo
     if (membershipError && membershipError.code !== "PGRST202") {
       setError(`Your profile is ready, but master account access was not linked: ${membershipError.message}`);
       return false;
+    }
+
+    if (!existingProfile && !profileLookupError) {
+      pushBantrboksEventOncePerAccount("sign_up", activeUser.id);
     }
 
     return true;
