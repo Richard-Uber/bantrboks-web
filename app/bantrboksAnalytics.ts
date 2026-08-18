@@ -34,6 +34,7 @@ declare global {
 }
 
 const attributionStorageKey = "bantrboks_campaign_attribution";
+const metaServerEvents = new Set<BantrboksEventName>(["sign_up", "first_post"]);
 
 function createEventId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -77,6 +78,30 @@ export function captureBantrboksCampaignAttribution() {
   readCampaignAttribution();
 }
 
+function sendMetaServerEvent(
+  event: BantrboksEventName,
+  eventId: string
+) {
+  if (typeof window === "undefined" || !metaServerEvents.has(event)) return;
+
+  // This request deliberately excludes account IDs, email addresses, handles,
+  // post IDs and post content. Meta matching signals are added server-side.
+  void fetch("/api/meta/conversions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      event,
+      event_id: eventId,
+      event_time: Math.floor(Date.now() / 1000),
+      event_source_url: window.location.href,
+    }),
+    credentials: "same-origin",
+    keepalive: true,
+  }).catch(() => {
+    // Meta tracking must never interrupt registration or posting.
+  });
+}
+
 export function pushBantrboksEvent(
   event: BantrboksEventName,
   parameters: BantrboksEventParameters = {}
@@ -91,6 +116,7 @@ export function pushBantrboksEvent(
     ...parameters,
     event_id: eventId,
   });
+  sendMetaServerEvent(event, eventId);
   return eventId;
 }
 
