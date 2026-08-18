@@ -805,12 +805,42 @@ export function BantrboksApp({ session }: { session: Session }) {
     requestAnimationFrame(() => viewbar.current?.scrollIntoView({ block: "start" }));
   }
 
+  async function prepareImageForUpload(file: File) {
+    if (!file.type.startsWith("image/") || file.type === "image/webp") return file;
+
+    try {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext("2d");
+      if (!context) return file;
+      context.drawImage(bitmap, 0, 0);
+      bitmap.close();
+
+      const webpBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/webp", 0.9);
+      });
+      if (!webpBlob) return file;
+
+      const baseName = file.name.replace(/\.[^.]+$/, "") || "bantrbox-image";
+      return new File([webpBlob], `${baseName}.webp`, {
+        type: "image/webp",
+        lastModified: file.lastModified,
+      });
+    } catch {
+      return file;
+    }
+  }
+
   async function uploadMediaFile(file: File, folder: string, profileId = activeProfileId) {
-    const safeExt = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const uploadFile = await prepareImageForUpload(file);
+    const safeExt = uploadFile.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
     const path = `${folder}/${session.user.id}/${profileId}/${Date.now()}.${safeExt}`;
-    const { error } = await supabase.storage.from("bantrbox-media").upload(path, file, {
+    const { error } = await supabase.storage.from("bantrbox-media").upload(path, uploadFile, {
       upsert: true,
-      contentType: file.type || undefined,
+      contentType: uploadFile.type || undefined,
+      cacheControl: "31536000",
     });
     if (error) throw error;
     const { data } = supabase.storage.from("bantrbox-media").getPublicUrl(path);
