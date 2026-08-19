@@ -9,7 +9,12 @@ export type BantrboksEventName =
   | "first_post"
   | "reply_created"
   | "reaction_added"
-  | "post_shared";
+  | "post_shared"
+  | "topic_view"
+  | "topic_reaction"
+  | "topic_share"
+  | "topic_registration_gate"
+  | "topic_response";
 
 type EventValue = string | number | boolean | null | undefined;
 

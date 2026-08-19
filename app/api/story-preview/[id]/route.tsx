@@ -75,7 +75,7 @@ export async function GET(
   const post = data as unknown as StoryPost | null;
   const author = post?.profiles?.handle || post?.profiles?.display_name || "Bantrboks";
   const text = visibleText(post?.body).slice(0, 300);
-  const image = await usablePostImage(post?.media_url) || await linkedPreviewImage(origin, post?.body ?? null);
+  const image = await usablePostImage(post?.media_url ?? null) || await linkedPreviewImage(origin, post?.body ?? null);
   const fallbackImage = new URL("/brand/bantrboks-room-rivalry-v3.webp", origin).href;
   const logo = new URL("/bantrboks-logo.webp", origin).href;
 
