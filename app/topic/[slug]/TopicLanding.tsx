@@ -18,6 +18,10 @@ function visibleBody(body: string) {
   return body.replace(/https?:\/\/\S+/gi, "").replace(/\s+/g, " ").trim() || "A rivalry take just dropped.";
 }
 
+function visibleQuestion(question: string) {
+  return question.replace(/\s*Drop your take!?\s*$/i, "").trim();
+}
+
 export function TopicLanding({
   initialTopic,
   initialResponses,
@@ -43,6 +47,7 @@ export function TopicLanding({
   const authRef = useRef<HTMLElement>(null);
 
   const topicTarget = `topic:${initialTopic.id}`;
+  const topicUrl = `https://bantrboks.com/topic/${encodeURIComponent(initialTopic.slug)}`;
   const topicTotals = totals[topicTarget] || { slap: 0, fire: 0 };
 
   useEffect(() => {
@@ -193,6 +198,21 @@ export function TopicLanding({
     pushBantrboksEvent("topic_share", { topic_slug: initialTopic.slug, share_channel: "native" });
   }
 
+  async function copyTopicLink() {
+    if (returnVisitor && !session) {
+      requireRegistration("share");
+      return;
+    }
+    await navigator.clipboard.writeText(window.location.href);
+    setMessage("Topic link copied.");
+    pushBantrboksEvent("topic_share", { topic_slug: initialTopic.slug, share_channel: "copy_link" });
+  }
+
+  function focusComposer() {
+    document.getElementById("topic-draft")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => document.getElementById("topic-draft")?.focus(), 350);
+  }
+
   function startReply(postId: string) {
     if (!session) return requireRegistration(`reply:${postId}`);
     setReplyTarget(postId);
@@ -235,29 +255,27 @@ export function TopicLanding({
 
   return (
     <main className="topic-page">
-      <header className="topic-header">
-        <a href="/"><img src="/bantrboks-logo.webp" alt="Bantrboks" /></a>
-        <span><i /> LIVE TOPIC</span>
-      </header>
-
-      <section className="topic-room-strip">
-        <small>SPRINGBOKS VS ALL BLACKS</small>
-        <strong>Rivalry room</strong>
-      </section>
+      <a className="topic-room-banner" href="/#home" aria-label="Open the Springboks versus All Blacks rivalry room">
+        <img src="/brand/bantrboks-room-rivalry-v3.webp" alt="Springboks versus All Blacks rivalry room" />
+      </a>
 
       <article className="topic-pinned">
-        <div className="topic-pinned-label">PINNED QUESTION</div>
-        <h1>{initialTopic.question}</h1>
         {initialTopic.media_url ? <img src={initialTopic.media_url} alt="All Blacks coaching approved campaign" /> : null}
-        <div className="topic-actions">
-          <button onClick={() => react(topicTarget, "slap")} disabled={busy === `reaction:${topicTarget}`}><span>👋</span><b>{topicTotals.slap}</b></button>
-          <button onClick={() => react(topicTarget, "fire")} disabled={busy === `reaction:${topicTarget}`}><span>🔥</span><b>{topicTotals.fire}</b></button>
-          <button onClick={shareTopic}><span>↗</span><b>Share</b></button>
-        </div>
       </article>
 
+      <section className="topic-question-card">
+        <span className="topic-question-mark" aria-hidden="true">?</span>
+        <h1>{visibleQuestion(initialTopic.question)}</h1>
+      </section>
+
+      <button className="topic-take-cta" type="button" onClick={focusComposer}>
+        <span aria-hidden="true">ϟ</span>
+        <strong>DROP YOUR TAKE</strong>
+        <small>Tap to answer</small>
+        <span aria-hidden="true">ϟ</span>
+      </button>
+
       <section className="topic-compose">
-        <h2>Drop your take</h2>
         <textarea
           id="topic-draft"
           value={draft}
@@ -265,9 +283,25 @@ export function TopicLanding({
           onChange={(event) => setDraft(event.target.value)}
           placeholder="What’s your take?"
         />
-        <div><span>{draft.length}/280</span><button onClick={postTake} disabled={busy === "post"}>{busy === "post" ? "Posting…" : "Drop your take"}</button></div>
+        <div><span>{draft.length}/280</span><button onClick={postTake} disabled={busy === "post"}>{busy === "post" ? "Posting…" : "Post"}</button></div>
         {message ? <p className="topic-message" role="status">{message}</p> : null}
       </section>
+
+      <section className="topic-share-panel" aria-label="Share this topic">
+        <div className="topic-share-title"><span>ϟ</span><b>SHARE THIS TOPIC</b><span>ϟ</span></div>
+        <div className="topic-share-options">
+          <a className="topic-share-icon topic-share-whatsapp" href={`https://wa.me/?text=${encodeURIComponent(`Drop your take ${topicUrl}`)}`} target="_blank" rel="noreferrer" aria-label="Share on WhatsApp">◉</a>
+          <a className="topic-share-icon topic-share-facebook" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(topicUrl)}`} target="_blank" rel="noreferrer" aria-label="Share on Facebook">f</a>
+          <a className="topic-share-icon topic-share-x" href={`https://twitter.com/intent/tweet?text=${encodeURIComponent("Drop your take")}&url=${encodeURIComponent(topicUrl)}`} target="_blank" rel="noreferrer" aria-label="Share on X">X</a>
+          <button className="topic-share-icon topic-share-instagram" type="button" onClick={shareTopic} aria-label="Share to Instagram or another app">◎</button>
+          <button className="topic-copy-link" type="button" onClick={copyTopicLink}><span aria-hidden="true">🔗</span> Copy link</button>
+        </div>
+      </section>
+
+      <div className="topic-actions topic-reaction-bar">
+        <button onClick={() => react(topicTarget, "slap")} disabled={busy === `reaction:${topicTarget}`}><span>👋</span><b>{topicTotals.slap}</b></button>
+        <button onClick={() => react(topicTarget, "fire")} disabled={busy === `reaction:${topicTarget}`}><span>🔥</span><b>{topicTotals.fire}</b></button>
+      </div>
 
       <section className="topic-responses">
         <div className="topic-section-title"><span>LIVE RESPONSES</span><b>{responses.length}</b></div>
