@@ -95,10 +95,25 @@ export const hakaGestureTopic: CampaignTopic = {
   redirect_path: "/#home",
 };
 
+export const deAllende100thTopic: CampaignTopic = {
+  id: "f66a6f1a-b5f1-42af-c397-202608200005",
+  slug: "springboks-all-blacks-de-allende-100th",
+  campaign_name: "Who wins this epic Test match?",
+  question: "Who wins this epic Test match?\n\nDamian de Allende earns his 100th Test cap. Drop your prediction and take!",
+  room_name: "Springboks vs All Blacks",
+  room_slug: "springboksvsallblacks",
+  media_url: "/brand/bantrboks-epic-test-de-allende-100th-1080x1080.png",
+  status: "live",
+  starts_at: "2026-08-20T12:00:00.000Z",
+  expires_at: "2026-08-22T15:00:00.000Z",
+  redirect_path: "/#home",
+};
+
 export const fallbackCampaignTopics: CampaignTopic[] = [
   coachedTechniqueTopic,
   quickTapTopic,
   hakaResponseTopic,
   rivalryTrophyTopic,
   hakaGestureTopic,
+  deAllende100thTopic,
 ];
