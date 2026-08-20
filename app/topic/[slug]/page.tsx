@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ensureCampaignTopic } from "../../api/topics/topicServer";
 import { supabase } from "../../supabase";
 import { fallbackCampaignTopics, type CampaignTopic, type TopicResponse } from "../topicTypes";
 import { TopicLanding } from "./TopicLanding";
@@ -10,7 +11,9 @@ async function loadTopic(slug: string) {
     .eq("slug", slug)
     .maybeSingle();
   if (data) return data as CampaignTopic;
-  return fallbackCampaignTopics.find((topic) => topic.slug === slug) || null;
+  const fallback = fallbackCampaignTopics.find((topic) => topic.slug === slug) || null;
+  if (fallback) await ensureCampaignTopic(slug);
+  return fallback;
 }
 
 async function loadResponses(topicId: string) {

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { fallbackCampaignTopics } from "../../topic/topicTypes";
 
 const supabaseUrl = "https://auth.bantrbox.com";
 const visitorCookie = "bb_topic_visitor";
@@ -57,6 +58,33 @@ export function adminSupabase() {
   return createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+export async function ensureCampaignTopic(slug: string) {
+  const client = adminSupabase();
+  const { data: existing, error: lookupError } = await client
+    .from("campaign_topics")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (existing) return existing;
+
+  const fallback = fallbackCampaignTopics.find((topic) => topic.slug === slug);
+  if (!fallback) return null;
+  const { data, error } = await client
+    .from("campaign_topics")
+    .upsert(
+      {
+        ...fallback,
+        admin_emails: ["richard@ubermobi.com"],
+      },
+      { onConflict: "slug" }
+    )
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function authenticatedUser(request: Request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return null;
@@ -93,4 +121,3 @@ export function json(data: unknown, status = 200, cookie = "") {
   if (cookie) headers.set("Set-Cookie", cookie);
   return new Response(JSON.stringify(data), { status, headers });
 }
-

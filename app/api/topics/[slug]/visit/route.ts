@@ -1,4 +1,4 @@
-import { adminSupabase, json, visitorIdentity } from "../../topicServer";
+import { adminSupabase, ensureCampaignTopic, json, visitorIdentity } from "../../topicServer";
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -7,7 +7,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     if (!sessionId || sessionId.length > 120) return json({ error: "Invalid visit session" }, 400);
 
     const client = adminSupabase();
-    const { data: topic } = await client.from("campaign_topics").select("id").eq("slug", slug).maybeSingle();
+    const topic = await ensureCampaignTopic(slug);
     if (!topic) return json({ error: "Topic not found" }, 404);
 
     const identity = await visitorIdentity(request);

@@ -2,6 +2,7 @@ import {
   actorHash,
   adminSupabase,
   authenticatedUser,
+  ensureCampaignTopic,
   enforceRateLimit,
   json,
   visitorIdentity,
@@ -19,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
 
     const client = adminSupabase();
-    const { data: topic } = await client.from("campaign_topics").select("id").eq("slug", slug).maybeSingle();
+    const topic = await ensureCampaignTopic(slug);
     if (!topic) return json({ error: "Topic not found" }, 404);
 
     const topicTarget = `topic:${topic.id}`;
