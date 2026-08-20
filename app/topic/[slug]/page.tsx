@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { supabase } from "../../supabase";
-import { coachedTechniqueTopic, type CampaignTopic, type TopicResponse } from "../topicTypes";
+import { fallbackCampaignTopics, type CampaignTopic, type TopicResponse } from "../topicTypes";
 import { TopicLanding } from "./TopicLanding";
 
 async function loadTopic(slug: string) {
@@ -10,7 +10,7 @@ async function loadTopic(slug: string) {
     .eq("slug", slug)
     .maybeSingle();
   if (data) return data as CampaignTopic;
-  return slug === coachedTechniqueTopic.slug ? coachedTechniqueTopic : null;
+  return fallbackCampaignTopics.find((topic) => topic.slug === slug) || null;
 }
 
 async function loadResponses(topicId: string) {
