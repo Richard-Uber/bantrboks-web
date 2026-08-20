@@ -81,9 +81,24 @@ export const rivalryTrophyTopic: CampaignTopic = {
   redirect_path: "/#home",
 };
 
+export const hakaGestureTopic: CampaignTopic = {
+  id: "e55f5e09-a4e0-419e-b286-202608200004",
+  slug: "haka-gesture-normal-or-not",
+  campaign_name: "Still look normal?",
+  question: "World wide, if it walks like a duck and talks like a duck, it is probably a duck! Apparently not in NZ?",
+  room_name: "Springboks vs All Blacks",
+  room_slug: "springboksvsallblacks",
+  media_url: "/brand/bantrboks-haka-gesture-everyday-life-v2-1080x1080.png",
+  status: "live",
+  starts_at: "2026-08-20T10:04:45.000Z",
+  expires_at: "2026-09-10T10:04:45.000Z",
+  redirect_path: "/#home",
+};
+
 export const fallbackCampaignTopics: CampaignTopic[] = [
   coachedTechniqueTopic,
   quickTapTopic,
   hakaResponseTopic,
   rivalryTrophyTopic,
+  hakaGestureTopic,
 ];
