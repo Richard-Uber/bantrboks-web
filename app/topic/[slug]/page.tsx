@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ensureCampaignTopic } from "../../api/topics/topicServer";
+import { adminSupabase, ensureCampaignTopic } from "../../api/topics/topicServer";
 import { supabase } from "../../supabase";
 import { fallbackCampaignTopics, type CampaignTopic, type TopicResponse } from "../topicTypes";
 import { TopicLanding } from "./TopicLanding";
@@ -17,14 +17,35 @@ async function loadTopic(slug: string) {
 }
 
 async function loadResponses(topicId: string) {
-  const { data } = await supabase
-    .from("posts")
-    .select("id, author_id, body, media_url, created_at, profiles(handle, display_name, avatar)")
-    .eq("topic_id", topicId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(40);
-  return (data || []) as unknown as TopicResponse[];
+  const [postResult, guestResult] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("id, author_id, body, media_url, created_at, profiles(handle, display_name, avatar)")
+      .eq("topic_id", topicId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(40),
+    adminSupabase()
+      .from("campaign_topic_guest_responses")
+      .select("id, body, created_at")
+      .eq("topic_id", topicId)
+      .is("claimed_post_id", null)
+      .order("created_at", { ascending: false })
+      .limit(40),
+  ]);
+  const posts = (postResult.data || []) as unknown as TopicResponse[];
+  const guests = (guestResult.data || []).map((response) => ({
+    id: `guest:${response.id}`,
+    guest_response_id: response.id,
+    author_id: "guest",
+    body: response.body,
+    media_url: null,
+    created_at: response.created_at,
+    profiles: null,
+  } satisfies TopicResponse));
+  return [...posts, ...guests]
+    .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+    .slice(0, 40);
 }
 
 async function loadReactionTotals(topicId: string) {

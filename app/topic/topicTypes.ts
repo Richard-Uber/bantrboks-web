@@ -14,6 +14,7 @@ export type CampaignTopic = {
 
 export type TopicResponse = {
   id: string;
+  guest_response_id?: string;
   author_id: string;
   body: string;
   media_url: string | null;

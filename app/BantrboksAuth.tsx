@@ -63,6 +63,27 @@ export function BantrboksAuth({
     return true;
   }
 
+  async function confirmAdultStatus(source: string) {
+    const { error: adultError } = await supabase.rpc("confirm_adult_status", {
+      p_policy_version: adultPolicyVersion,
+      p_source: source,
+    });
+    if (adultError) {
+      setError(`Your account is ready, but the 18+ confirmation was not saved: ${adultError.message}`);
+      return false;
+    }
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(adultConfirmationPendingKey);
+    }
+    return true;
+  }
+
+  async function confirmPendingAdultStatus() {
+    if (typeof window === "undefined") return true;
+    const source = window.sessionStorage.getItem(adultConfirmationPendingKey);
+    return source ? confirmAdultStatus(source) : true;
+  }
+
   async function syncProfile(user?: User | null) {
     const activeUser = user ?? (await supabase.auth.getUser()).data.user;
 
@@ -148,6 +169,7 @@ export function BantrboksAuth({
       const synced = await syncProfile(data.session.user);
 
       if (isMounted && synced) {
+        if (!await confirmPendingAdultStatus()) return;
         if (returnToIntendedPage()) return;
         setMessage("Your Bantrbox account is ready in the Bantrboks room.");
 
@@ -168,6 +190,7 @@ export function BantrboksAuth({
 
       const synced = await syncProfile(session.user);
       if (isMounted && synced) {
+        if (!await confirmPendingAdultStatus()) return;
         if (returnToIntendedPage()) return;
         setMessage("Your Bantrbox account is ready in the Bantrboks room.");
       }
@@ -199,8 +222,8 @@ export function BantrboksAuth({
       return;
     }
 
-    if (mode === "create" && !adultAccepted) {
-      setError("Confirm that you are 18 or older to create an account.");
+    if ((mode === "create" || socialFirst) && !adultAccepted) {
+      setError("Confirm that you are 18 or older to continue.");
       return;
     }
 
@@ -256,20 +279,14 @@ export function BantrboksAuth({
       setBusy(false);
 
       if (activeUser) {
-        const { error: adultError } = await supabase.rpc("confirm_adult_status", {
-          p_policy_version: adultPolicyVersion,
-          p_source: "bantrboks-web-email",
-        });
-        if (adultError) {
-          setError(`Your account was created, but the 18+ confirmation was not saved: ${adultError.message}`);
-          return;
-        }
+        if (!await confirmAdultStatus("bantrboks-web-email")) return;
         const synced = await syncProfile(activeUser);
         if (!synced) {
           return;
         }
       }
 
+      if (returnToIntendedPage()) return;
       setMessage("Bantrbox account created. You have joined the Bantrboks room.");
       return;
     }
@@ -289,6 +306,9 @@ export function BantrboksAuth({
     if (!synced) {
       return;
     }
+
+    if (socialFirst && !await confirmAdultStatus("bantrboks-web-email-signin")) return;
+    if (returnToIntendedPage()) return;
 
     setMessage("Signed in to Bantrbox. Welcome back to the Bantrboks room.");
   }

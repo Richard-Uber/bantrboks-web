@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BantrboksAuth } from "../../BantrboksAuth";
-import { AdultAccountGate } from "../../AdultAccountGate";
 import { pushBantrboksEvent, pushBantrboksEventOncePerAccount } from "../../bantrboksAnalytics";
 import { supabase } from "../../supabase";
 import type { CampaignTopic, TopicResponse } from "../topicTypes";
@@ -46,6 +45,7 @@ export function TopicLanding({
     () => Date.now() >= new Date(initialTopic.expires_at).getTime() || initialTopic.status === "expired"
   );
   const authRef = useRef<HTMLElement>(null);
+  const authRestoreRunning = useRef(false);
 
   const topicTarget = `topic:${initialTopic.id}`;
   const topicUrl = `https://bantrboks.com/topic/${encodeURIComponent(initialTopic.slug)}`;
@@ -98,7 +98,7 @@ export function TopicLanding({
 
   const submitTake = useCallback(async (activeSession: Session) => {
     const body = (window.localStorage.getItem(`${storagePrefix}:draft`) || "").trim();
-    if (!body || busy) return;
+    if (!body || busy) return null;
     setBusy("post");
     setMessage("");
     try {
@@ -114,7 +114,7 @@ export function TopicLanding({
         body,
         tags: [initialTopic.room_name, initialTopic.room_slug, "bantrbox", `topic:${initialTopic.slug}`],
         topic_id: initialTopic.id,
-        media_url: null,
+        media_url: initialTopic.media_url,
         visibility: "Everyone",
       });
       if (error) throw error;
@@ -125,7 +125,7 @@ export function TopicLanding({
         id: postId,
         author_id: activeSession.user.id,
         body,
-        media_url: null,
+        media_url: initialTopic.media_url,
         created_at: new Date().toISOString(),
         profiles: profile.data || null,
       }, ...current]);
@@ -133,18 +133,63 @@ export function TopicLanding({
       window.localStorage.removeItem(`${storagePrefix}:draft`);
       window.localStorage.removeItem(`${storagePrefix}:pending`);
       setMessage("Your take is live in the room.");
+      return postId;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Your take could not be posted.");
+      return null;
     } finally {
       setBusy("");
     }
   }, [busy, initialTopic, storagePrefix]);
 
   useEffect(() => {
-    if (!session || window.localStorage.getItem(`${storagePrefix}:pending`) !== "post") return;
-    const timer = window.setTimeout(() => void submitTake(session), 700);
+    if (!session || authRestoreRunning.current) return;
+    const pending = window.localStorage.getItem(`${storagePrefix}:pending`);
+    const guestResponseId = window.localStorage.getItem(`${storagePrefix}:guest_response_id`);
+    if (!pending && !guestResponseId) return;
+
+    authRestoreRunning.current = true;
+    const timer = window.setTimeout(async () => {
+      let destinationPostId = "";
+      try {
+        if (guestResponseId || pending) {
+          const claimResponse = await fetch(`/api/topics/${encodeURIComponent(initialTopic.slug)}/claim`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          const claimData = await claimResponse.json().catch(() => ({}));
+          if (!claimResponse.ok) throw new Error(claimData.error || "Your earlier take could not be linked.");
+          if (claimData.claimed && claimData.post_id) {
+            destinationPostId = String(claimData.post_id);
+            if (claimData.was_first_post) {
+              pushBantrboksEventOncePerAccount("first_post", session.user.id, { post_id: destinationPostId });
+            }
+            window.localStorage.removeItem(`${storagePrefix}:guest_response_id`);
+          }
+        }
+
+        if (pending === "post") {
+          destinationPostId = await submitTake(session) || destinationPostId;
+        } else if (pending === "reaction") {
+          const target = window.localStorage.getItem(`${storagePrefix}:pending_reaction_target`);
+          const reaction = window.localStorage.getItem(`${storagePrefix}:pending_reaction_kind`) as Reaction | null;
+          if (target && (reaction === "slap" || reaction === "fire")) await react(target, reaction);
+        }
+
+        window.localStorage.removeItem(`${storagePrefix}:pending`);
+        window.localStorage.removeItem(`${storagePrefix}:pending_reaction_target`);
+        window.localStorage.removeItem(`${storagePrefix}:pending_reaction_kind`);
+        if (destinationPostId) {
+          window.location.assign(`/?focusPost=${encodeURIComponent(destinationPostId)}#home`);
+        }
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Your saved action could not be restored.");
+        authRestoreRunning.current = false;
+      }
+    }, 500);
     return () => window.clearTimeout(timer);
-  }, [session, storagePrefix, submitTake]);
+  }, [initialTopic.slug, session, storagePrefix, submitTake]);
 
   async function postTake() {
     if (expired) return;
@@ -154,7 +199,32 @@ export function TopicLanding({
       return;
     }
     if (!session) {
-      requireRegistration("post");
+      setBusy("post");
+      setMessage("");
+      try {
+        const response = await fetch(`/api/topics/${encodeURIComponent(initialTopic.slug)}/respond`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ body: draft.trim() }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (data.registration_required) return requireRegistration("post");
+        if (!response.ok) return setMessage(data.error || "Your take could not be saved.");
+        const guestResponse = data.response as TopicResponse;
+        setResponses((current) => [guestResponse, ...current]);
+        if (guestResponse.guest_response_id) {
+          window.localStorage.setItem(`${storagePrefix}:guest_response_id`, guestResponse.guest_response_id);
+        }
+        setDraft("");
+        window.localStorage.removeItem(`${storagePrefix}:draft`);
+        setMessage("Your take is live. Create an account when you next interact to keep it on your profile.");
+        pushBantrboksEvent("topic_response", { topic_slug: initialTopic.slug, guest: true });
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Your take could not be saved.");
+      } finally {
+        setBusy("");
+      }
       return;
     }
     await submitTake(session);
@@ -162,7 +232,9 @@ export function TopicLanding({
 
   async function react(targetKey: string, reaction: Reaction) {
     if (returnVisitor && !session) {
-      requireRegistration(`reaction:${targetKey}`);
+      window.localStorage.setItem(`${storagePrefix}:pending_reaction_target`, targetKey);
+      window.localStorage.setItem(`${storagePrefix}:pending_reaction_kind`, reaction);
+      requireRegistration("reaction");
       return;
     }
     setBusy(`reaction:${targetKey}`);
@@ -178,17 +250,17 @@ export function TopicLanding({
     });
     const data = await response.json().catch(() => ({}));
     setBusy("");
-    if (data.registration_required) return requireRegistration(`reaction:${targetKey}`);
+    if (data.registration_required) {
+      window.localStorage.setItem(`${storagePrefix}:pending_reaction_target`, targetKey);
+      window.localStorage.setItem(`${storagePrefix}:pending_reaction_kind`, reaction);
+      return requireRegistration("reaction");
+    }
     if (!response.ok) return setMessage(data.error || "Reaction could not be saved.");
     setTotals((current) => ({ ...current, [targetKey]: data.totals }));
     pushBantrboksEvent("topic_reaction", { topic_slug: initialTopic.slug, reaction, target_key: targetKey });
   }
 
   async function shareTopic() {
-    if (returnVisitor && !session) {
-      requireRegistration("share");
-      return;
-    }
     const url = window.location.href;
     if (navigator.share) {
       await navigator.share({ title: initialTopic.campaign_name, text: "Drop your take", url }).catch(() => undefined);
@@ -200,10 +272,6 @@ export function TopicLanding({
   }
 
   async function copyTopicLink() {
-    if (returnVisitor && !session) {
-      requireRegistration("share");
-      return;
-    }
     await navigator.clipboard.writeText(window.location.href);
     setMessage("Topic link copied.");
     pushBantrboksEvent("topic_share", { topic_slug: initialTopic.slug, share_channel: "copy_link" });
@@ -215,6 +283,7 @@ export function TopicLanding({
   }
 
   function startReply(postId: string) {
+    if (postId.startsWith("guest:")) return requireRegistration("reply");
     if (!session) return requireRegistration(`reply:${postId}`);
     setReplyTarget(postId);
     setReplyDraft("");
@@ -307,19 +376,20 @@ export function TopicLanding({
       <section className="topic-responses">
         <div className="topic-section-title"><span>LIVE RESPONSES</span><b>{responses.length}</b></div>
         {responses.length ? responses.map((response) => {
+          const isGuestResponse = response.id.startsWith("guest:");
           const targetKey = `post:${response.id}`;
           const responseTotals = totals[targetKey] || { slap: 0, fire: 0 };
           return (
             <article className="topic-response" key={response.id}>
               <div className="topic-response-author">
                 {response.profiles?.avatar?.startsWith("http") ? <img src={response.profiles.avatar} alt="" /> : <span>{profileInitials(response)}</span>}
-                <div><strong>@{response.profiles?.handle || "bantrboks"}</strong><small>{response.profiles?.display_name || "Bantrboks supporter"}</small></div>
+                <div><strong>@{response.profiles?.handle || "guest"}</strong><small>{response.profiles?.display_name || "Guest supporter"}</small></div>
               </div>
               <p>{visibleBody(response.body)}</p>
               {response.media_url ? <img className="topic-response-media" src={response.media_url} alt="" loading="lazy" /> : null}
               <div className="topic-response-actions">
-                <button onClick={() => react(targetKey, "slap")}>👋 {responseTotals.slap}</button>
-                <button onClick={() => react(targetKey, "fire")}>🔥 {responseTotals.fire}</button>
+                <button onClick={() => isGuestResponse ? requireRegistration("reaction") : react(targetKey, "slap")}>👋 {responseTotals.slap}</button>
+                <button onClick={() => isGuestResponse ? requireRegistration("reaction") : react(targetKey, "fire")}>🔥 {responseTotals.fire}</button>
                 <button onClick={() => startReply(response.id)}>💬 Reply</button>
               </div>
               {replyTarget === response.id ? <div className="topic-reply"><input value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} placeholder="Write a reply" /><button onClick={() => sendReply(response.id)} disabled={busy === `reply:${response.id}`}>Send</button></div> : null}
@@ -341,9 +411,5 @@ export function TopicLanding({
     </main>
   );
 
-  return session ? (
-    <AdultAccountGate source="bantrboks-topic">
-      {pageContent}
-    </AdultAccountGate>
-  ) : pageContent;
+  return pageContent;
 }

@@ -507,6 +507,7 @@ export function BantrboksApp({ session }: { session: Session }) {
   const avatarInput = useRef<HTMLInputElement | null>(null);
   const viewbar = useRef<HTMLElement | null>(null);
   const roomViewTracked = useRef(false);
+  const focusedPostHandled = useRef("");
 
   useEffect(() => {
     if (roomViewTracked.current) return;
@@ -612,6 +613,26 @@ export function BantrboksApp({ session }: { session: Session }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !posts.length) return;
+    const url = new URL(window.location.href);
+    const focusPostId = url.searchParams.get("focusPost") || "";
+    if (!focusPostId || focusedPostHandled.current === focusPostId) return;
+    if (!posts.some((post) => post.id === focusPostId)) return;
+
+    focusedPostHandled.current = focusPostId;
+    setView("home");
+    const timer = window.setTimeout(() => {
+      const post = document.getElementById(`post-${focusPostId}`);
+      post?.scrollIntoView({ behavior: "smooth", block: "center" });
+      post?.classList.add("bb-post-focus");
+      window.setTimeout(() => post?.classList.remove("bb-post-focus"), 2200);
+      url.searchParams.delete("focusPost");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [posts]);
 
   useEffect(() => {
     setProfileNameDraft(profile?.display_name ?? "");

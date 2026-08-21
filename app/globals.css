@@ -408,6 +408,15 @@
   border-color: var(--bb-green);
 }
 
+.bb-post.bb-post-focus {
+  animation: bb-post-focus-pulse 2.2s ease-out;
+}
+
+@keyframes bb-post-focus-pulse {
+  0%, 35% { box-shadow: 0 0 0 4px rgba(255, 216, 0, 0.72), 0 0 34px rgba(255, 216, 0, 0.5); }
+  100% { box-shadow: none; }
+}
+
 .bb-post:nth-child(3n + 1) {
   border-color: var(--bb-yellow);
 }
