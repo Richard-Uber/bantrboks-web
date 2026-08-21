@@ -24,6 +24,20 @@ export type TopicResponse = {
     display_name: string | null;
     avatar: string | null;
   } | null;
+  replies?: TopicReply[];
+};
+
+export type TopicReply = {
+  id: string;
+  post_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  profiles: {
+    handle: string | null;
+    display_name: string | null;
+    avatar: string | null;
+  } | null;
 };
 
 export const coachedTechniqueTopic: CampaignTopic = {

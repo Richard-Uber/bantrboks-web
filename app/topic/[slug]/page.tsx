@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { adminSupabase, ensureCampaignTopic } from "../../api/topics/topicServer";
 import { supabase } from "../../supabase";
-import { fallbackCampaignTopics, type CampaignTopic, type TopicResponse } from "../topicTypes";
+import { fallbackCampaignTopics, type CampaignTopic, type TopicReply, type TopicResponse } from "../topicTypes";
 import { TopicLanding } from "./TopicLanding";
 
 async function loadTopic(slug: string) {
@@ -34,6 +34,20 @@ async function loadResponses(topicId: string) {
       .limit(40),
   ]);
   const posts = (postResult.data || []) as unknown as TopicResponse[];
+  const postIds = posts.map((post) => post.id);
+  const replyResult = postIds.length
+    ? await supabase
+      .from("comments")
+      .select("id, post_id, author_id, body, created_at, profiles(handle, display_name, avatar)")
+      .in("post_id", postIds)
+      .order("created_at", { ascending: true })
+    : { data: [] };
+  const repliesByPost = ((replyResult.data || []) as unknown as TopicReply[]).reduce<Record<string, TopicReply[]>>((grouped, reply) => {
+    grouped[reply.post_id] ||= [];
+    grouped[reply.post_id].push(reply);
+    return grouped;
+  }, {});
+  const postsWithReplies = posts.map((post) => ({ ...post, replies: repliesByPost[post.id] || [] }));
   const guests = (guestResult.data || []).map((response) => ({
     id: `guest:${response.id}`,
     guest_response_id: response.id,
@@ -43,7 +57,7 @@ async function loadResponses(topicId: string) {
     created_at: response.created_at,
     profiles: null,
   } satisfies TopicResponse));
-  return [...posts, ...guests]
+  return [...postsWithReplies, ...guests]
     .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
     .slice(0, 40);
 }

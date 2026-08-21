@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { BantrboksAuth } from "../../BantrboksAuth";
 import { pushBantrboksEvent, pushBantrboksEventOncePerAccount } from "../../bantrboksAnalytics";
 import { supabase } from "../../supabase";
-import type { CampaignTopic, TopicResponse } from "../topicTypes";
+import type { CampaignTopic, TopicReply, TopicResponse } from "../topicTypes";
 
 type Totals = Record<string, { slap: number; fire: number }>;
 type Reaction = "slap" | "fire";
@@ -175,13 +175,16 @@ export function TopicLanding({
           const target = window.localStorage.getItem(`${storagePrefix}:pending_reaction_target`);
           const reaction = window.localStorage.getItem(`${storagePrefix}:pending_reaction_kind`) as Reaction | null;
           if (target && (reaction === "slap" || reaction === "fire")) await react(target, reaction);
+        } else if (pending?.startsWith("reply:")) {
+          const targetPostId = pending.slice("reply:".length);
+          if (targetPostId) setReplyTarget(targetPostId);
         }
 
         window.localStorage.removeItem(`${storagePrefix}:pending`);
         window.localStorage.removeItem(`${storagePrefix}:pending_reaction_target`);
         window.localStorage.removeItem(`${storagePrefix}:pending_reaction_kind`);
         if (destinationPostId) {
-          window.location.assign(`/?focusPost=${encodeURIComponent(destinationPostId)}#home`);
+          window.location.assign(`/topic/${encodeURIComponent(initialTopic.slug)}#topic-discussion`);
         }
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Your saved action could not be restored.");
@@ -292,14 +295,28 @@ export function TopicLanding({
   async function sendReply(postId: string) {
     if (!session || !replyDraft.trim()) return;
     setBusy(`reply:${postId}`);
+    const replyId = `${Date.now()}-${postId}`;
+    const replyBody = replyDraft.trim();
     const { error } = await supabase.from("comments").insert({
-      id: `${Date.now()}-${postId}`,
+      id: replyId,
       post_id: postId,
       author_id: session.user.id,
-      body: replyDraft.trim(),
+      body: replyBody,
     });
     setBusy("");
     if (error) return setMessage(error.message);
+    const profile = await supabase.from("profiles").select("handle, display_name, avatar").eq("id", session.user.id).maybeSingle();
+    const reply: TopicReply = {
+      id: replyId,
+      post_id: postId,
+      author_id: session.user.id,
+      body: replyBody,
+      created_at: new Date().toISOString(),
+      profiles: profile.data || null,
+    };
+    setResponses((current) => current.map((response) => response.id === postId
+      ? { ...response, replies: [...(response.replies || []), reply] }
+      : response));
     setReplyDraft("");
     setReplyTarget(null);
     setMessage("Your reply is live.");
@@ -373,8 +390,8 @@ export function TopicLanding({
         <button onClick={() => react(topicTarget, "fire")} disabled={busy === `reaction:${topicTarget}`}><span>🔥</span><b>{topicTotals.fire}</b></button>
       </div>
 
-      <section className="topic-responses">
-        <div className="topic-section-title"><span>LIVE RESPONSES</span><b>{responses.length}</b></div>
+      <section className="topic-responses" id="topic-discussion">
+        <div className="topic-section-title"><span>DISCUSSION</span><b>{responses.length}</b></div>
         {responses.length ? responses.map((response) => {
           const isGuestResponse = response.id.startsWith("guest:");
           const targetKey = `post:${response.id}`;
@@ -386,12 +403,22 @@ export function TopicLanding({
                 <div><strong>@{response.profiles?.handle || "guest"}</strong><small>{response.profiles?.display_name || "Guest supporter"}</small></div>
               </div>
               <p>{visibleBody(response.body)}</p>
-              {response.media_url ? <img className="topic-response-media" src={response.media_url} alt="" loading="lazy" /> : null}
+              {response.media_url && response.media_url !== initialTopic.media_url
+                ? <img className="topic-response-media" src={response.media_url} alt="" loading="lazy" />
+                : null}
               <div className="topic-response-actions">
                 <button onClick={() => isGuestResponse ? requireRegistration("reaction") : react(targetKey, "slap")}>👋 {responseTotals.slap}</button>
                 <button onClick={() => isGuestResponse ? requireRegistration("reaction") : react(targetKey, "fire")}>🔥 {responseTotals.fire}</button>
                 <button onClick={() => startReply(response.id)}>💬 Reply</button>
               </div>
+              {response.replies?.length ? <div className="topic-response-replies">
+                {response.replies.map((reply) => (
+                  <div className="topic-response-reply" key={reply.id}>
+                    <strong>@{reply.profiles?.handle || reply.profiles?.display_name || "supporter"}</strong>
+                    <p>{visibleBody(reply.body)}</p>
+                  </div>
+                ))}
+              </div> : null}
               {replyTarget === response.id ? <div className="topic-reply"><input value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} placeholder="Write a reply" /><button onClick={() => sendReply(response.id)} disabled={busy === `reply:${response.id}`}>Send</button></div> : null}
             </article>
           );
