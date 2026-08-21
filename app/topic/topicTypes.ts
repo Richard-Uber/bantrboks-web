@@ -137,6 +137,20 @@ export const allBlackConspiracyFilesTopic: CampaignTopic = {
   redirect_path: "/#home",
 };
 
+export const hakaExpertSingingTopic: CampaignTopic = {
+  id: "c99d9c4d-e8c4-45d2-f6ca-202608210005",
+  slug: "haka-expert-singing-is-an-honour",
+  campaign_name: "Haka expert: singing back is beautiful",
+  question: "For opponents to accept the haka challenge and respond in song is an honour.\n\nDoes staying silent show respect—or refuse the challenge? Give your take!",
+  room_name: "Springboks vs All Blacks",
+  room_slug: "springboksvsallblacks",
+  media_url: "/brand/bantrboks-haka-expert-singing-is-an-honour-1080x1080.png",
+  status: "live",
+  starts_at: "2026-08-21T12:55:00.000Z",
+  expires_at: "2026-09-21T12:55:00.000Z",
+  redirect_path: "/#home",
+};
+
 export const fallbackCampaignTopics: CampaignTopic[] = [
   coachedTechniqueTopic,
   quickTapTopic,
@@ -146,4 +160,5 @@ export const fallbackCampaignTopics: CampaignTopic[] = [
   deAllende100thTopic,
   suzi95ConspiracyTopic,
   allBlackConspiracyFilesTopic,
+  hakaExpertSingingTopic,
 ];
