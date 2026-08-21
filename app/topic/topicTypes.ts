@@ -123,6 +123,20 @@ export const suzi95ConspiracyTopic: CampaignTopic = {
   redirect_path: "/#home",
 };
 
+export const allBlackConspiracyFilesTopic: CampaignTopic = {
+  id: "b88c8b3c-d7b3-44c1-e5b9-202608210004",
+  slug: "all-black-conspiracy-files",
+  campaign_name: "The All Black conspiracy files",
+  question: "1987. 1995. 2009. 2011.\n\nPattern or paranoia? Which All Black conspiracy theory still gets rugby fans arguing? Give your take!",
+  room_name: "Springboks vs All Blacks",
+  room_slug: "springboksvsallblacks",
+  media_url: "/brand/bantrboks-all-black-conspiracy-files-1080x1080.png",
+  status: "live",
+  starts_at: "2026-08-21T11:40:00.000Z",
+  expires_at: "2026-09-21T11:40:00.000Z",
+  redirect_path: "/#home",
+};
+
 export const fallbackCampaignTopics: CampaignTopic[] = [
   coachedTechniqueTopic,
   quickTapTopic,
@@ -131,4 +145,5 @@ export const fallbackCampaignTopics: CampaignTopic[] = [
   hakaGestureTopic,
   deAllende100thTopic,
   suzi95ConspiracyTopic,
+  allBlackConspiracyFilesTopic,
 ];
