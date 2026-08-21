@@ -439,22 +439,10 @@ function sharePostToX(post: Post) {
 
 async function sharePostToInstagram(post: Post) {
   const url = sharedPostUrl(post.id);
-<<<<<<< ours
   const storyUrl = new URL(`/api/story-preview/${encodeURIComponent(post.id)}`, window.location.origin).href;
 
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(url);
-=======
-  const text = `Drop just hit\n\n${url}`;
-
-  if (navigator.share && window.matchMedia("(pointer: coarse)").matches) {
-    await navigator.share({
-      title: "Drop just hit",
-      text: "Drop just hit",
-      url,
-    });
-    return "shared" as const;
->>>>>>> theirs
   }
 
   try {
