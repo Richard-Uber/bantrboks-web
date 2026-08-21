@@ -109,6 +109,20 @@ export const deAllende100thTopic: CampaignTopic = {
   redirect_path: "/#home",
 };
 
+export const suzi95ConspiracyTopic: CampaignTopic = {
+  id: "a77b7a2b-c6a2-43b0-d4a8-202608210003",
+  slug: "famous-conspiracies-suzi-95",
+  campaign_name: "Which conspiracy still divides rugby fans?",
+  question: "Moon landing. Area 51. Chemtrails. Suzi '95.\n\nWas the 1995 food-poisoning accusation plausible—or has it become rugby folklore? Give your take!",
+  room_name: "Springboks vs All Blacks",
+  room_slug: "springboksvsallblacks",
+  media_url: "/brand/bantrboks-famous-conspiracies-suzi-95-1080x1080.png",
+  status: "live",
+  starts_at: "2026-08-21T04:23:00.000Z",
+  expires_at: "2026-09-21T04:23:00.000Z",
+  redirect_path: "/#home",
+};
+
 export const fallbackCampaignTopics: CampaignTopic[] = [
   coachedTechniqueTopic,
   quickTapTopic,
@@ -116,4 +130,5 @@ export const fallbackCampaignTopics: CampaignTopic[] = [
   rivalryTrophyTopic,
   hakaGestureTopic,
   deAllende100thTopic,
+  suzi95ConspiracyTopic,
 ];
