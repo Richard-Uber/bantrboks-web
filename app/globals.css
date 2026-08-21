@@ -2885,3 +2885,120 @@ a {
   .topic-share-icon { width: 50px; height: 50px; }
   .topic-copy-link { padding-inline: 16px; }
 }
+.adult-gate {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 50% 20%, rgba(51, 207, 209, 0.14), transparent 34rem),
+    #000;
+  color: #fff;
+}
+
+.adult-gate-card {
+  width: min(100%, 560px);
+  padding: clamp(24px, 5vw, 42px);
+  border: 2px solid #35cfd2;
+  border-radius: 30px;
+  background: linear-gradient(145deg, rgba(29, 35, 11, 0.97), rgba(4, 18, 18, 0.98));
+  box-shadow: 0 0 42px rgba(53, 207, 210, 0.16);
+  text-align: center;
+}
+
+.adult-gate-card > img {
+  display: block;
+  width: min(100%, 320px);
+  height: auto;
+  margin: 0 auto 24px;
+}
+
+.adult-gate-kicker {
+  color: #35cfd2;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.adult-gate-card h1 {
+  margin: 10px 0;
+  color: #ffd800;
+  font-size: clamp(2rem, 8vw, 3.4rem);
+  line-height: 1;
+}
+
+.adult-gate-card > p {
+  color: #ddd;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.adult-gate-check,
+.mobile-auth-adult-check {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 24px 0 18px;
+  text-align: left;
+  color: #fff;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.adult-gate-check input,
+.mobile-auth-adult-check input {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  accent-color: #ffd800;
+}
+
+.adult-gate-check a,
+.mobile-auth-adult-check a {
+  color: #35cfd2;
+  text-decoration: underline;
+}
+
+.adult-gate-continue,
+.adult-gate-signout {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 900;
+}
+
+.adult-gate-continue {
+  border: 0;
+  background: #ffd800;
+  color: #000;
+}
+
+.adult-gate-continue:disabled {
+  opacity: 0.42;
+}
+
+.adult-gate-signout {
+  margin-top: 10px;
+  border: 1px solid #555;
+  background: #050505;
+  color: #fff;
+}
+
+.adult-gate-error {
+  color: #ff8080 !important;
+}
+
+.adult-gate-loading {
+  margin-top: 24px;
+  color: #35cfd2 !important;
+  font-weight: 800;
+}
+
+.mobile-auth-adult-check {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid rgba(53, 207, 210, 0.55);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}

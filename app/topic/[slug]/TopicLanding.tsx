@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BantrboksAuth } from "../../BantrboksAuth";
+import { AdultAccountGate } from "../../AdultAccountGate";
 import { pushBantrboksEvent, pushBantrboksEventOncePerAccount } from "../../bantrboksAnalytics";
 import { supabase } from "../../supabase";
 import type { CampaignTopic, TopicResponse } from "../topicTypes";
@@ -253,7 +254,7 @@ export function TopicLanding({
     );
   }
 
-  return (
+  const pageContent = (
     <main className="topic-page">
       <a className="topic-room-banner" href="/#home" aria-label="Open the Springboks versus All Blacks rivalry room">
         <img src="/brand/bantrboks-room-rivalry-v3.webp" alt="Springboks versus All Blacks rivalry room" />
@@ -339,4 +340,10 @@ export function TopicLanding({
       </footer>
     </main>
   );
+
+  return session ? (
+    <AdultAccountGate source="bantrboks-topic">
+      {pageContent}
+    </AdultAccountGate>
+  ) : pageContent;
 }

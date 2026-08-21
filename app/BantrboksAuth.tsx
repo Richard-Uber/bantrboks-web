@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { pushBantrboksEventOncePerAccount } from "./bantrboksAnalytics";
+import { adultConfirmationPendingKey, adultPolicyVersion } from "./AdultAccountGate";
 
 type AuthMode = "create" | "signin";
 type OAuthProvider = "google" | "facebook" | "apple";
@@ -41,6 +42,7 @@ export function BantrboksAuth({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [manualOpen, setManualOpen] = useState(!collapsedManual);
+  const [adultAccepted, setAdultAccepted] = useState(false);
 
   const cleanHandle = useMemo(() => normaliseHandle(handle), [handle]);
 
@@ -197,6 +199,11 @@ export function BantrboksAuth({
       return;
     }
 
+    if (mode === "create" && !adultAccepted) {
+      setError("Confirm that you are 18 or older to create an account.");
+      return;
+    }
+
     setBusy(true);
 
     if (mode === "create") {
@@ -249,6 +256,14 @@ export function BantrboksAuth({
       setBusy(false);
 
       if (activeUser) {
+        const { error: adultError } = await supabase.rpc("confirm_adult_status", {
+          p_policy_version: adultPolicyVersion,
+          p_source: "bantrboks-web-email",
+        });
+        if (adultError) {
+          setError(`Your account was created, but the 18+ confirmation was not saved: ${adultError.message}`);
+          return;
+        }
         const synced = await syncProfile(activeUser);
         if (!synced) {
           return;
@@ -312,6 +327,11 @@ export function BantrboksAuth({
   async function continueWithOAuth(provider: OAuthProvider) {
     setMessage("");
     setError("");
+    if (!adultAccepted) {
+      setError("Confirm that you are 18 or older before continuing with a social account.");
+      return;
+    }
+
     setBusy(true);
 
     const redirectTo = typeof window === "undefined" ? undefined : window.location.origin;
@@ -320,6 +340,10 @@ export function BantrboksAuth({
       window.sessionStorage.setItem(
         oauthReturnPathKey,
         `${window.location.pathname}${window.location.search}${window.location.hash}`
+      );
+      window.sessionStorage.setItem(
+        adultConfirmationPendingKey,
+        `bantrboks-web-${provider}`
       );
     }
 
@@ -338,6 +362,7 @@ export function BantrboksAuth({
     if (oauthError) {
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem(oauthReturnPathKey);
+        window.sessionStorage.removeItem(adultConfirmationPendingKey);
       }
       setBusy(false);
       setError(oauthError.message);
@@ -390,8 +415,25 @@ export function BantrboksAuth({
     </>
   );
 
+  const adultConsent = (
+    <label className="mobile-auth-adult-check">
+      <input
+        type="checkbox"
+        checked={adultAccepted}
+        onChange={(event) => setAdultAccepted(event.target.checked)}
+      />
+      <span>
+        I confirm that I am 18 years of age or older and agree to the{" "}
+        <a href="https://bantrbox.com/terms" target="_blank" rel="noreferrer">Terms</a>
+        {" "}and{" "}
+        <a href="https://bantrbox.com/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+      </span>
+    </label>
+  );
+
   return (
     <form className="mobile-login" aria-label="Bantrbox account access through Bantrboks" onSubmit={submit}>
+      {socialFirst ? adultConsent : null}
       {socialFirst ? socialAccess : null}
       {error ? <p className="mobile-login-status error">{error}</p> : null}
       {message ? <p className="mobile-login-status">{message}</p> : null}
@@ -433,6 +475,7 @@ export function BantrboksAuth({
               </p>
               <input type="text" placeholder="Display name" aria-label="Display name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} autoComplete="name" />
               <input type="text" placeholder="Handle" aria-label="Handle" value={handle} onChange={(event) => setHandle(event.target.value)} autoComplete="nickname" />
+              {!socialFirst ? adultConsent : null}
             </>
           ) : null}
 
@@ -442,6 +485,7 @@ export function BantrboksAuth({
           <button className="mobile-auth-primary" type="submit" disabled={busy}>
             {busy ? (mode === "create" ? "Creating..." : "Signing in...") : mode === "create" ? "Create Bantrbox Account" : "Sign in"}
           </button>
+          {!socialFirst && mode === "signin" ? adultConsent : null}
           {!socialFirst ? socialAccess : null}
           <button className="mobile-auth-secondary" type="button" onClick={() => switchMode(mode === "create" ? "signin" : "create")} disabled={busy}>
             {mode === "create" ? "I already have an account" : "Create a new account"}

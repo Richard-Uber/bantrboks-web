@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BantrboksApp } from "./BantrboksApp";
 import { BantrboksLanding } from "./BantrboksLanding";
+import { AdultAccountGate } from "./AdultAccountGate";
 import { supabase } from "./supabase";
 
 export function BantrboksAppShell() {
@@ -42,5 +43,9 @@ export function BantrboksAppShell() {
     );
   }
 
-  return session?.user ? <BantrboksApp session={session} /> : <BantrboksLanding />;
+  return session?.user ? (
+    <AdultAccountGate source="bantrboks-web">
+      <BantrboksApp session={session} />
+    </AdultAccountGate>
+  ) : <BantrboksLanding />;
 }
