@@ -144,13 +144,14 @@ async function ensurePersonalProfile(user: User) {
   const baseHandle = normaliseHandle(
     String(metadata.handle || metadata.username || metadata.preferred_username || emailHandle || "bantrbox")
   ).slice(0, 30);
-  const { data: conflictingProfile, error: handleLookupError } = await supabase
+  const { data: conflictingProfiles, error: handleLookupError } = await supabase
     .from("profiles")
     .select("id")
     .ilike("handle", baseHandle)
     .neq("id", user.id)
-    .maybeSingle();
+    .limit(1);
   if (handleLookupError) throw handleLookupError;
+  const conflictingProfile = conflictingProfiles?.[0] ?? null;
 
   const uniqueSuffix = user.id.replace(/-/g, "").slice(0, 6);
   const profileHandle = conflictingProfile

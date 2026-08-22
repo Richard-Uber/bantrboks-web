@@ -4,7 +4,11 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { pushBantrboksEventOncePerAccount } from "./bantrboksAnalytics";
-import { adultConfirmationPendingKey, adultPolicyVersion } from "./AdultAccountGate";
+import {
+  adultConfirmationPendingKey,
+  adultPolicyVersion,
+  oauthReturnPathKey,
+} from "./AdultAccountGate";
 
 type AuthMode = "create" | "signin";
 type OAuthProvider = "google" | "facebook" | "apple";
@@ -14,7 +18,20 @@ const roomSlug = "springboksvsallblacks";
 const legalVersion = "bantrbox-platform-2026-08";
 const signupSource = "bantrboks";
 const acquisitionCampaign = "springboks-all-blacks-tour";
-const oauthReturnPathKey = "bantrboks_oauth_return_path";
+
+function readStoredValue(key: string) {
+  return window.sessionStorage.getItem(key) || window.localStorage.getItem(key);
+}
+
+function storeValue(key: string, value: string) {
+  window.sessionStorage.setItem(key, value);
+  window.localStorage.setItem(key, value);
+}
+
+function clearStoredValue(key: string) {
+  window.sessionStorage.removeItem(key);
+  window.localStorage.removeItem(key);
+}
 
 function normaliseHandle(value: string) {
   return value
@@ -49,10 +66,10 @@ export function BantrboksAuth({
   function returnToIntendedPage() {
     if (typeof window === "undefined") return false;
 
-    const returnPath = window.sessionStorage.getItem(oauthReturnPathKey);
+    const returnPath = readStoredValue(oauthReturnPathKey);
     if (!returnPath) return false;
 
-    window.sessionStorage.removeItem(oauthReturnPathKey);
+    clearStoredValue(oauthReturnPathKey);
     const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
 
     if (!returnPath.startsWith("/") || returnPath.startsWith("//") || returnPath === currentPath) {
@@ -73,14 +90,14 @@ export function BantrboksAuth({
       return false;
     }
     if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem(adultConfirmationPendingKey);
+      clearStoredValue(adultConfirmationPendingKey);
     }
     return true;
   }
 
   async function confirmPendingAdultStatus() {
     if (typeof window === "undefined") return true;
-    const source = window.sessionStorage.getItem(adultConfirmationPendingKey);
+    const source = readStoredValue(adultConfirmationPendingKey);
     return source ? confirmAdultStatus(source) : true;
   }
 
@@ -93,17 +110,36 @@ export function BantrboksAuth({
 
     const meta = activeUser.user_metadata ?? {};
     const emailHandle = normaliseHandle(activeUser.email.split("@")[0] ?? "");
-    const profileHandle = normaliseHandle(
+    const baseProfileHandle = normaliseHandle(
       String(meta.handle || meta.username || cleanHandle || emailHandle)
     );
-    const profileName = String(
-      meta.display_name || meta.full_name || displayName.trim() || profileHandle
-    ).trim();
     const { data: existingProfile, error: profileLookupError } = await supabase
       .from("profiles")
       .select("id, avatar, bio")
       .eq("id", activeUser.id)
       .maybeSingle();
+    if (profileLookupError) {
+      setError(`Your account was created, but its profile could not be loaded: ${profileLookupError.message}`);
+      return false;
+    }
+    const { data: conflictingProfiles, error: handleLookupError } = existingProfile
+      ? { data: [], error: null }
+      : await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("handle", baseProfileHandle)
+          .neq("id", activeUser.id)
+          .limit(1);
+    if (handleLookupError) {
+      setError(`Your account was created, but its profile name could not be checked: ${handleLookupError.message}`);
+      return false;
+    }
+    const profileHandle = conflictingProfiles?.[0]
+      ? `${baseProfileHandle.slice(0, 23)}_${activeUser.id.replace(/-/g, "").slice(0, 6)}`
+      : baseProfileHandle;
+    const profileName = String(
+      meta.display_name || meta.full_name || displayName.trim() || profileHandle
+    ).trim();
     const avatar =
       existingProfile?.avatar || (profileHandle || profileName || "bb").slice(0, 2).toUpperCase();
     const now = new Date().toISOString();
@@ -354,14 +390,16 @@ export function BantrboksAuth({
 
     setBusy(true);
 
-    const redirectTo = typeof window === "undefined" ? undefined : window.location.origin;
+    const redirectTo = typeof window === "undefined"
+      ? undefined
+      : `${window.location.origin}${window.location.pathname}${window.location.search}`;
 
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(
+      storeValue(
         oauthReturnPathKey,
         `${window.location.pathname}${window.location.search}${window.location.hash}`
       );
-      window.sessionStorage.setItem(
+      storeValue(
         adultConfirmationPendingKey,
         `bantrboks-web-${provider}`
       );
@@ -381,8 +419,8 @@ export function BantrboksAuth({
 
     if (oauthError) {
       if (typeof window !== "undefined") {
-        window.sessionStorage.removeItem(oauthReturnPathKey);
-        window.sessionStorage.removeItem(adultConfirmationPendingKey);
+        clearStoredValue(oauthReturnPathKey);
+        clearStoredValue(adultConfirmationPendingKey);
       }
       setBusy(false);
       setError(oauthError.message);
