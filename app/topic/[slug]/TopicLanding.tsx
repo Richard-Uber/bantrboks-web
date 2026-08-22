@@ -178,17 +178,23 @@ export function TopicLanding({
         } else if (pending === "reaction") {
           const target = window.localStorage.getItem(`${storagePrefix}:pending_reaction_target`);
           const reaction = window.localStorage.getItem(`${storagePrefix}:pending_reaction_kind`) as Reaction | null;
-          if (target && (reaction === "slap" || reaction === "fire")) await react(target, reaction);
+          if (target && (reaction === "slap" || reaction === "fire")) {
+            await react(target, reaction);
+            destinationPostId = target;
+          }
         } else if (pending?.startsWith("reply:")) {
           const targetPostId = pending.slice("reply:".length);
-          if (targetPostId) setReplyTarget(targetPostId);
+          if (targetPostId) {
+            setReplyTarget(targetPostId);
+            destinationPostId = targetPostId;
+          }
         }
 
         window.localStorage.removeItem(`${storagePrefix}:pending`);
         window.localStorage.removeItem(`${storagePrefix}:pending_reaction_target`);
         window.localStorage.removeItem(`${storagePrefix}:pending_reaction_kind`);
         if (destinationPostId) {
-          window.location.assign(`/topic/${encodeURIComponent(initialTopic.slug)}#topic-discussion`);
+          window.location.assign(`/?focusPost=${encodeURIComponent(destinationPostId)}`);
         }
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Your saved action could not be restored.");
