@@ -10,9 +10,11 @@ import {
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
-    const payload = await request.json() as { body?: string };
+    const payload = await request.json() as { body?: string; session_id?: string };
     const body = String(payload.body || "").trim();
     if (!body || body.length > 280) return json({ error: "Write a take of up to 280 characters." }, 400);
+    const sessionId = String(payload.session_id || "");
+    if (!sessionId || sessionId.length > 120) return json({ error: "Invalid visit session" }, 400);
 
     const client = adminSupabase();
     const topic = await ensureCampaignTopic(slug);
@@ -23,9 +25,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       .from("campaign_topic_visits")
       .select("id", { count: "exact", head: true })
       .eq("topic_id", topic.id)
-      .eq("visitor_hash", identity.visitorHash);
+      .eq("visitor_hash", identity.visitorHash)
+      .neq("session_id", sessionId);
     if (visitError) throw visitError;
-    if ((visitCount || 0) > 1) return json({ registration_required: true }, 401, identity.cookie);
+    if ((visitCount || 0) > 0) return json({ registration_required: true }, 401, identity.cookie);
 
     const actor = await actorHash(request, identity.visitorHash);
     if (!await enforceRateLimit(topic.id, actor, "guest_response", 5)) {

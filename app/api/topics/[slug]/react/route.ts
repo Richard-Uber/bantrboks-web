@@ -14,6 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const payload = await request.json() as {
       target_key?: string;
       reaction?: "slap" | "fire";
+      session_id?: string;
     };
     if (!payload.target_key || !["slap", "fire"].includes(payload.reaction || "")) {
       return json({ error: "Invalid reaction" }, 400);
@@ -39,13 +40,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     const identity = await visitorIdentity(request);
     const user = await authenticatedUser(request);
+    const sessionId = String(payload.session_id || "");
+    if (!user && (!sessionId || sessionId.length > 120)) {
+      return json({ error: "Invalid visit session" }, 400, identity.cookie);
+    }
     const { count: visitCount, error: visitCountError } = await client
       .from("campaign_topic_visits")
       .select("id", { count: "exact", head: true })
       .eq("topic_id", topic.id)
-      .eq("visitor_hash", identity.visitorHash);
+      .eq("visitor_hash", identity.visitorHash)
+      .neq("session_id", sessionId || "authenticated");
     if (visitCountError) throw visitCountError;
-    if ((visitCount || 0) > 1 && !user) {
+    if ((visitCount || 0) > 0 && !user) {
       return json({ registration_required: true }, 401, identity.cookie);
     }
 

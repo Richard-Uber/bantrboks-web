@@ -46,6 +46,7 @@ export function TopicLanding({
   );
   const authRef = useRef<HTMLElement>(null);
   const authRestoreRunning = useRef(false);
+  const visitSessionIdRef = useRef("");
 
   const topicTarget = `topic:${initialTopic.id}`;
   const topicUrl = `https://bantrboks.com/topic/${encodeURIComponent(initialTopic.slug)}`;
@@ -53,7 +54,10 @@ export function TopicLanding({
 
   useEffect(() => {
     setDraft(window.localStorage.getItem(`${storagePrefix}:draft`) || "");
-    const sessionId = crypto.randomUUID();
+    const visitSessionStorageKey = `${storagePrefix}:visit_session_id`;
+    const sessionId = window.sessionStorage.getItem(visitSessionStorageKey) || crypto.randomUUID();
+    window.sessionStorage.setItem(visitSessionStorageKey, sessionId);
+    visitSessionIdRef.current = sessionId;
     void fetch(`/api/topics/${encodeURIComponent(initialTopic.slug)}/visit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -209,7 +213,7 @@ export function TopicLanding({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({ body: draft.trim() }),
+          body: JSON.stringify({ body: draft.trim(), session_id: visitSessionIdRef.current }),
         });
         const data = await response.json().catch(() => ({}));
         if (data.registration_required) return requireRegistration("post");
@@ -249,7 +253,11 @@ export function TopicLanding({
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       credentials: "same-origin",
-      body: JSON.stringify({ target_key: targetKey, reaction }),
+      body: JSON.stringify({
+        target_key: targetKey,
+        reaction,
+        session_id: visitSessionIdRef.current,
+      }),
     });
     const data = await response.json().catch(() => ({}));
     setBusy("");
