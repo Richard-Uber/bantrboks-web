@@ -3,6 +3,7 @@ import { supabase } from "../../supabase";
 
 type SharedPost = {
   id: string;
+  topic_id: string | null;
   body: string;
   media_url: string | null;
   audio_url: string | null;
@@ -24,7 +25,7 @@ function isImageUrl(value: string | null | undefined) {
 async function getSharedPost(id: string) {
   const { data } = await supabase
     .from("posts")
-    .select("id, body, media_url, audio_url, created_at, profiles(handle, display_name, avatar)")
+    .select("id, topic_id, body, media_url, audio_url, created_at, profiles(handle, display_name, avatar)")
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
@@ -33,6 +34,7 @@ async function getSharedPost(id: string) {
 }
 
 function postAuthor(post: SharedPost | null) {
+  if (post?.topic_id) return "@bantrboks";
   return post?.profiles?.handle ? `@${post.profiles.handle}` : "@bantrboks";
 }
 
@@ -129,10 +131,10 @@ export default async function SharedPostPage({
       {post ? (
         <article className="shared-post-card">
           <div className="shared-post-author">
-            <span>{(post.profiles?.handle || post.profiles?.display_name || "BB").slice(0, 2).toUpperCase()}</span>
+            <span>{post.topic_id ? "BB" : (post.profiles?.handle || post.profiles?.display_name || "BB").slice(0, 2).toUpperCase()}</span>
             <div>
               <strong>{postAuthor(post)}</strong>
-              <small>{post.profiles?.display_name || "Bantrboks user"}</small>
+              <small>{post.topic_id ? "Bantrboks campaign" : post.profiles?.display_name || "Bantrboks user"}</small>
             </div>
           </div>
           <b className="shared-post-tag">#springboksvsallblacks</b>

@@ -21,6 +21,7 @@ type AccountMembership = {
 type Post = {
   id: string;
   author_id: string;
+  topic_id: string | null;
   body: string;
   tags: string[];
   media_url: string | null;
@@ -87,6 +88,13 @@ const roomSlug = "springboksvsallblacks";
 const roomTags = [roomName, roomSlug];
 const roomHash = "#springboksvsallblacks";
 const roomChannelName = "bantrboks-live-springboksvsallblacks";
+const campaignProfile: Profile = {
+  id: "bantrboks-campaign",
+  handle: "bantrboks",
+  display_name: "Bantrboks campaign",
+  avatar: "/bantrboks-logo.webp",
+  bio: "Official Bantrboks campaign discussion",
+};
 
 function initials(profile?: Profile | null) {
   const source = profile?.handle || profile?.display_name || "BB";
@@ -577,7 +585,7 @@ export function BantrboksApp({ session }: { session: Session }) {
           .maybeSingle(),
         supabase
           .from("posts")
-          .select("id, author_id, body, tags, media_url, audio_url, created_at, edited_at, profiles(id, handle, display_name, avatar, bio)")
+          .select("id, author_id, topic_id, body, tags, media_url, audio_url, created_at, edited_at, profiles(id, handle, display_name, avatar, bio)")
           .overlaps("tags", roomTags)
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
@@ -1077,7 +1085,11 @@ export function BantrboksApp({ session }: { session: Session }) {
     const post = posts.find((item) => item.id === postId);
     const body = nextBody.trim();
 
-    if (!post || post.author_id !== activeProfileId) {
+    if (!post || post.author_id !== activeProfileId || post.topic_id) {
+      if (post?.topic_id) {
+        setStatus("Campaign discussion cards cannot be edited by participants.");
+        return false;
+      }
       setStatus("You can only edit your own bantrs.");
       return false;
     }
@@ -1561,15 +1573,16 @@ function Feed({
         const threadedComments = threadComments(postComments);
         const replyTarget = replyTargets[post.id];
         const postText = postTextWithoutUrls(post.body);
+        const postProfile = post.topic_id ? campaignProfile : post.profiles;
         return (
           <article className="bb-post" id={`post-${post.id}`} key={post.id}>
             <header>
-              <Avatar profile={post.profiles} />
+              <Avatar profile={postProfile} />
               <div>
-                <strong>{cleanHandle(post.profiles)}</strong>
-                <small>{post.profiles?.display_name || "Bantrboks user"} • {formatAge(post.created_at)}{post.edited_at ? " • Edited" : ""}</small>
+                <strong>{cleanHandle(postProfile)}</strong>
+                <small>{postProfile?.display_name || "Bantrboks user"} • {formatAge(post.created_at)}{post.edited_at ? " • Edited" : ""}</small>
               </div>
-              {post.author_id === activeProfileId ? (
+              {!post.topic_id && post.author_id === activeProfileId ? (
                 <button className="bb-inline-edit" type="button" onClick={() => openEditor("post", post.id, post.body)}>
                   Edit
                 </button>

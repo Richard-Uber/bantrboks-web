@@ -62,7 +62,7 @@ export async function ensureCampaignTopic(slug: string) {
   const client = adminSupabase();
   const { data: existing, error: lookupError } = await client
     .from("campaign_topics")
-    .select("id")
+    .select("id, slug, question, room_name, room_slug, media_url, canonical_post_id")
     .eq("slug", slug)
     .maybeSingle();
   if (lookupError) throw lookupError;
@@ -79,10 +79,62 @@ export async function ensureCampaignTopic(slug: string) {
       },
       { onConflict: "slug" }
     )
-    .select("id")
+    .select("id, slug, question, room_name, room_slug, media_url, canonical_post_id")
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function ensureCanonicalTopicPost(topic: {
+  id: string;
+  slug: string;
+  question: string;
+  room_name: string;
+  room_slug: string;
+  media_url: string | null;
+  canonical_post_id?: string | null;
+}, authorId: string) {
+  const client = adminSupabase();
+  if (topic.canonical_post_id) {
+    const { data } = await client.from("posts").select("id").eq("id", topic.canonical_post_id).is("deleted_at", null).maybeSingle();
+    if (data?.id) return data.id as string;
+  }
+
+  const { data: existing, error: existingError } = await client
+    .from("posts")
+    .select("id")
+    .eq("topic_id", topic.id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (existingError) throw existingError;
+
+  let postId = existing?.id as string | undefined;
+  if (!postId) {
+    postId = String(Date.now());
+    const { error } = await client.from("posts").insert({
+      id: postId,
+      author_id: authorId,
+      body: topic.question,
+      tags: [topic.room_name, topic.room_slug, "bantrbox", `topic:${topic.slug}`],
+      topic_id: topic.id,
+      media_url: topic.media_url,
+      visibility: "Everyone",
+    });
+    if (error) {
+      const { data: raced } = await client.from("posts").select("id").eq("topic_id", topic.id).is("deleted_at", null).limit(1).maybeSingle();
+      if (!raced?.id) throw error;
+      postId = raced.id as string;
+    }
+  }
+
+  const { error: topicError } = await client
+    .from("campaign_topics")
+    .update({ canonical_post_id: postId })
+    .eq("id", topic.id);
+  if (topicError) throw topicError;
+  return postId;
 }
 
 export async function authenticatedUser(request: Request) {

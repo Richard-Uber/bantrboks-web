@@ -51,6 +51,7 @@ export function TopicLanding({
   const topicTarget = `topic:${initialTopic.id}`;
   const topicUrl = `https://bantrboks.com/topic/${encodeURIComponent(initialTopic.slug)}`;
   const topicTotals = totals[topicTarget] || { slap: 0, fire: 0 };
+  const discussionCount = responses.reduce((count, response) => count + (response.replies?.length || 0), 0);
 
   useEffect(() => {
     setDraft(window.localStorage.getItem(`${storagePrefix}:draft`) || "");
@@ -107,32 +108,34 @@ export function TopicLanding({
     setMessage("");
     try {
       if (!await waitForProfile(activeSession.user.id)) throw new Error("Your profile is still being prepared. Please try again.");
-      const { count } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .eq("author_id", activeSession.user.id);
-      const postId = String(Date.now());
-      const { error } = await supabase.from("posts").insert({
-        id: postId,
-        author_id: activeSession.user.id,
-        body,
-        tags: [initialTopic.room_name, initialTopic.room_slug, "bantrbox", `topic:${initialTopic.slug}`],
-        topic_id: initialTopic.id,
-        media_url: initialTopic.media_url,
-        visibility: "Everyone",
+      const response = await fetch(`/api/topics/${encodeURIComponent(initialTopic.slug)}/contribute`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeSession.access_token}` },
+        body: JSON.stringify({ body }),
       });
-      if (error) throw error;
-      if (count === 0) pushBantrboksEventOncePerAccount("first_post", activeSession.user.id, { post_id: postId });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Your take could not be posted.");
+      const postId = String(data.post_id);
+      if (data.was_first_post) pushBantrboksEventOncePerAccount("first_post", activeSession.user.id, { post_id: postId });
       pushBantrboksEvent("topic_response", { topic_slug: initialTopic.slug, post_id: postId });
-      const profile = await supabase.from("profiles").select("handle, display_name, avatar").eq("id", activeSession.user.id).maybeSingle();
-      setResponses((current) => [{
-        id: postId,
-        author_id: activeSession.user.id,
-        body,
-        media_url: initialTopic.media_url,
-        created_at: new Date().toISOString(),
-        profiles: profile.data || null,
-      }, ...current]);
+      setResponses((current) => {
+        const existing = current.find((item) => item.id === postId);
+        if (existing) {
+          return current.map((item) => item.id === postId
+            ? { ...item, replies: [...(item.replies || []), data.comment as TopicReply] }
+            : item);
+        }
+        return [{
+          id: postId,
+          author_id: "bantrboks-campaign",
+          body: initialTopic.question,
+          media_url: initialTopic.media_url,
+          created_at: new Date().toISOString(),
+          profiles: null,
+          replies: [data.comment as TopicReply],
+        }];
+      });
       setDraft("");
       window.localStorage.removeItem(`${storagePrefix}:draft`);
       window.localStorage.removeItem(`${storagePrefix}:pending`);
@@ -173,7 +176,7 @@ export function TopicLanding({
           }
         }
 
-        if (pending === "post") {
+        if (pending === "post" && !destinationPostId) {
           destinationPostId = await submitTake(session) || destinationPostId;
         } else if (pending === "reaction") {
           const target = window.localStorage.getItem(`${storagePrefix}:pending_reaction_target`);
@@ -405,16 +408,24 @@ export function TopicLanding({
       </div>
 
       <section className="topic-responses" id="topic-discussion">
-        <div className="topic-section-title"><span>DISCUSSION</span><b>{responses.length}</b></div>
+        <div className="topic-section-title"><span>DISCUSSION</span><b>{discussionCount}</b></div>
         {responses.length ? responses.map((response) => {
           const isGuestResponse = response.id.startsWith("guest:");
+          const isCampaignPost = !isGuestResponse && (response.id === initialTopic.canonical_post_id || response === responses[0]);
           const targetKey = `post:${response.id}`;
           const responseTotals = totals[targetKey] || { slap: 0, fire: 0 };
           return (
             <article className="topic-response" key={response.id}>
               <div className="topic-response-author">
-                {response.profiles?.avatar?.startsWith("http") ? <img src={response.profiles.avatar} alt="" /> : <span>{profileInitials(response)}</span>}
-                <div><strong>@{response.profiles?.handle || "guest"}</strong><small>{response.profiles?.display_name || "Guest supporter"}</small></div>
+                {isCampaignPost
+                  ? <img src="/bantrboks-logo.webp" alt="" />
+                  : response.profiles?.avatar?.startsWith("http")
+                    ? <img src={response.profiles.avatar} alt="" />
+                    : <span>{profileInitials(response)}</span>}
+                <div>
+                  <strong>@{isCampaignPost ? "bantrboks" : response.profiles?.handle || "guest"}</strong>
+                  <small>{isCampaignPost ? "Bantrboks campaign" : response.profiles?.display_name || "Guest supporter"}</small>
+                </div>
               </div>
               <p>{visibleBody(response.body)}</p>
               {response.media_url && response.media_url !== initialTopic.media_url

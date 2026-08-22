@@ -7,7 +7,7 @@ import { TopicLanding } from "./TopicLanding";
 async function loadTopic(slug: string) {
   const { data } = await supabase
     .from("campaign_topics")
-    .select("id, slug, campaign_name, question, room_name, room_slug, media_url, status, starts_at, expires_at, redirect_path")
+    .select("id, slug, campaign_name, question, room_name, room_slug, media_url, status, starts_at, expires_at, redirect_path, canonical_post_id")
     .eq("slug", slug)
     .maybeSingle();
   if (data) return data as CampaignTopic;
@@ -16,24 +16,25 @@ async function loadTopic(slug: string) {
   return fallback;
 }
 
-async function loadResponses(topicId: string) {
+async function loadResponses(topic: CampaignTopic) {
   const [postResult, guestResult] = await Promise.all([
     supabase
       .from("posts")
       .select("id, author_id, body, media_url, created_at, profiles(handle, display_name, avatar)")
-      .eq("topic_id", topicId)
+      .eq("topic_id", topic.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(40),
     adminSupabase()
       .from("campaign_topic_guest_responses")
       .select("id, body, created_at")
-      .eq("topic_id", topicId)
+      .eq("topic_id", topic.id)
       .is("claimed_post_id", null)
       .order("created_at", { ascending: false })
       .limit(40),
   ]);
   const posts = (postResult.data || []) as unknown as TopicResponse[];
+  const canonical = posts.find((post) => post.id === topic.canonical_post_id) || posts[posts.length - 1] || null;
   const postIds = posts.map((post) => post.id);
   const replyResult = postIds.length
     ? await supabase
@@ -47,19 +48,17 @@ async function loadResponses(topicId: string) {
     grouped[reply.post_id].push(reply);
     return grouped;
   }, {});
-  const postsWithReplies = posts.map((post) => ({ ...post, replies: repliesByPost[post.id] || [] }));
+  const allReplies = Object.values(repliesByPost).flat();
   const guests = (guestResult.data || []).map((response) => ({
     id: `guest:${response.id}`,
-    guest_response_id: response.id,
+    post_id: canonical?.id || "guest",
     author_id: "guest",
     body: response.body,
-    media_url: null,
     created_at: response.created_at,
     profiles: null,
-  } satisfies TopicResponse));
-  return [...postsWithReplies, ...guests]
-    .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
-    .slice(0, 40);
+  } satisfies TopicReply));
+  if (!canonical) return [];
+  return [{ ...canonical, replies: [...allReplies, ...guests].sort((a, b) => a.created_at.localeCompare(b.created_at)) }];
 }
 
 async function loadReactionTotals(topicId: string) {
@@ -112,7 +111,7 @@ export default async function TopicPage({ params }: { params: Promise<{ slug: st
     return <main className="topic-missing"><h1>That topic is no longer available.</h1><a href="/">Open Bantrboks</a></main>;
   }
   const [responses, totals] = await Promise.all([
-    loadResponses(topic.id),
+    loadResponses(topic),
     loadReactionTotals(topic.id),
   ]);
   return <TopicLanding initialTopic={topic} initialResponses={responses} initialTotals={totals} />;

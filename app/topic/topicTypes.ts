@@ -10,6 +10,7 @@ export type CampaignTopic = {
   starts_at: string;
   expires_at: string;
   redirect_path: string;
+  canonical_post_id?: string | null;
 };
 
 export type TopicResponse = {
